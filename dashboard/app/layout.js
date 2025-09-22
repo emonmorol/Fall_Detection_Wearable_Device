@@ -38,7 +38,7 @@ export default function RootLayout({ children }) {
 					<SidebarInset>
 						<SiteHeader />
 
-						<div className="p-5">{children}</div>
+						<div>{children}</div>
 					</SidebarInset>
 				</SidebarProvider>
 			</body>
