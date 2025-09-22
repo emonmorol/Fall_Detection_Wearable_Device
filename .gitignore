@@ -3,3 +3,8 @@ dashboard/.next
 server/node_modules
 server/.env
 dashboard/.env
+# Never commit env files
+.env
+*.env
+server/.env
+
