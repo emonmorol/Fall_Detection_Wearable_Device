@@ -12,7 +12,7 @@ export default function buildReadingRoutes(io) {
   router.post('/', async (req, res) => {
     console.log('POST /readings', req.body);
     const { error, value } = readingSchema.validate(req.body);
-    console.log(error, value);
+    // console.log(error, value);
     if (error) return res.status(400).json({ error: error.message });
 
     // sanity bounds
@@ -35,6 +35,7 @@ export default function buildReadingRoutes(io) {
       spo2: doc.spo2,
       flags: doc.flags,
     });
+
     await device.updateOne(
       { deviceId: value.deviceId },
       { $set: { lastSeen: Date.now() } },

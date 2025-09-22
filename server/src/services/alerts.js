@@ -1,17 +1,14 @@
 import Twilio from 'twilio';
-import TelegramBot from 'node-telegram-bot-api';
 import Alert from '../models/alert.js';
+import device from '../models/device.js';
+import config from '../config.js';
 
-const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-const twilioTok = process.env.TWILIO_AUTH_TOKEN;
-const twilioFrom = process.env.TWILIO_WHATSAPP_FROM;
-const whatsappTo = process.env.ALERT_TO_WHATSAPP;
-
-const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-const tgChatId = process.env.TELEGRAM_CHAT_ID;
+const twilioSid = config.twilioAccountSid;
+const twilioTok = config.twilioAuthToken;
+const twilioFrom = config.twilioWhatsAppFrom;
+const twilioTo = config.twilioWhatsAppTo;
 
 const twilio = twilioSid && twilioTok ? new Twilio(twilioSid, twilioTok) : null;
-const bot = tgToken ? new TelegramBot(tgToken, { polling: false }) : null;
 
 // dedupe within 2 minutes per device/rule
 async function shouldDeliver(deviceId, rule) {
@@ -21,21 +18,16 @@ async function shouldDeliver(deviceId, rule) {
 }
 
 export async function fanoutAlert({ deviceId, rule, value }) {
+  console.log('FANOUT ALERT', await shouldDeliver(deviceId, rule));
   if (!(await shouldDeliver(deviceId, rule))) return;
-
   const text = `ALERT (${deviceId}): ${rule} = ${value}`;
   const deliveredTo = [];
 
-  if (twilio && twilioFrom && whatsappTo) {
+  if (twilio && twilioFrom && twilioTo) {
     try {
-      await twilio.messages.create({ from: twilioFrom, to: whatsappTo, body: text });
+      const msg = await twilio.messages.create({ from: twilioFrom, to: twilioTo, body: text });
+      console.log('Twilio sent', msg);
       deliveredTo.push('whatsapp');
-    } catch {}
-  }
-  if (bot && tgChatId) {
-    try {
-      await bot.sendMessage(tgChatId, text);
-      deliveredTo.push('telegram');
     } catch {}
   }
 
