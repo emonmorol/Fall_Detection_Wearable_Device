@@ -8,8 +8,10 @@ export default function buildReadingRoutes(io) {
   const router = Router();
 
   // Ingest from device
-  router.post('/', verifySignature, async (req, res) => {
+  router.post('/', async (req, res) => {
+    console.log('POST /readings', req.body);
     const { error, value } = readingSchema.validate(req.body);
+    console.log(error, value);
     if (error) return res.status(400).json({ error: error.message });
 
     // sanity bounds

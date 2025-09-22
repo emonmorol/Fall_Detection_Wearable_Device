@@ -4,12 +4,13 @@ const ReadingSchema = new Schema(
   {
     deviceId: { type: String, index: true },
     ts: { type: Date, index: true },
-    hr: Number,
-    spo2: Number,
+    hr: { type: Number, default: -1 }, // -1 if invalid
+    spo2: { type: Number, default: -1 }, // -1 if invalid
+
     flags: {
-      hrLow: Boolean,
-      hrHigh: Boolean,
-      spo2Low: Boolean,
+      hrLow: { type: Boolean, default: false },
+      hrHigh: { type: Boolean, default: false },
+      spo2Low: { type: Boolean, default: false },
     },
   },
   { timestamps: true },

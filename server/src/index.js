@@ -7,7 +7,6 @@ import config from './config.js';
 
 // Connect Mongo first
 dotenv.config();
-console.log(config.mongoUri);
 await initMongo(config.mongoUri);
 
 // HTTP + Socket.IO
