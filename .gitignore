@@ -1,3 +1,5 @@
 dashboard/node_modules
 dashboard/.next
 server/node_modules
+server/.env
+dashboard/.env
