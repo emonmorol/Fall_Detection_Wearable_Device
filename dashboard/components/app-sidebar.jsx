@@ -37,32 +37,32 @@ const data = {
 	user: {
 		name: "Team Paradox",
 		email: "team_paradox@gmail.com",
-		avatar: "/avatars/shadcn.jpg",
+		avatar: "/avatar.png",
 	},
 	navMain: [
 		{
 			title: "Dashboard",
-			url: "/dashboard",
+			url: "/",
 			icon: IconDashboard,
 		},
 		{
-			title: "Readings",
-			url: "/dashboard/readings",
+			title: "Realtime",
+			url: "/realtime",
 			icon: IconListDetails,
 		},
 		{
-			title: "Real-time",
-			url: "/dashboard/realtime",
+			title: "Readings",
+			url: "/readings",
 			icon: IconChartBar,
 		},
 		{
 			title: "Alerts",
-			url: "/dashboard/alerts",
+			url: "/alerts",
 			icon: IconFolder,
 		},
 		{
 			title: "Settings",
-			url: "/dashboard/settings",
+			url: "/settings",
 			icon: IconUsers,
 		},
 	],
@@ -80,7 +80,7 @@ export function AppSidebar({ ...props }) {
 						>
 							<a href="#">
 								<IconInnerShadowTop className="!size-5" />
-								<span className="text-base font-semibold uppercase text-extrabold">
+								<span className="text-base font-semibold">
 									Fall Detection
 								</span>
 							</a>

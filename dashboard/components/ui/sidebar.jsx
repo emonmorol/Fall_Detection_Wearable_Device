@@ -440,7 +440,7 @@ function SidebarMenuItem({ className, ...props }) {
 		<li
 			data-slot="sidebar-menu-item"
 			data-sidebar="menu-item"
-			className={cn("group/menu-item relative cursor-pointer", className)}
+			className={cn("group/menu-item relative", className)}
 			{...props}
 		/>
 	);

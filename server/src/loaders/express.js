@@ -9,6 +9,7 @@ import authRoutes from '../routes/auth.js';
 import deviceRoutes from '../routes/devices.js';
 import buildReadingRoutes from '../routes/readings.js';
 import alertRoutes from '../routes/alerts.js';
+import stateRoutes from '../routes/stats.js';
 import config from '../config.js';
 
 export default function buildExpress(io) {
@@ -42,6 +43,7 @@ export default function buildExpress(io) {
   app.use('/api/devices', deviceRoutes);
   app.use('/api/readings', buildReadingRoutes(io));
   app.use('/api/alerts', alertRoutes);
+  app.use('/api/stats', stateRoutes);
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
   app.get('/', (_req, res) =>

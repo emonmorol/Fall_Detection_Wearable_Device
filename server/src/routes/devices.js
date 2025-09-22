@@ -5,7 +5,13 @@ import Device from '../models/device.js';
 
 const router = Router();
 
-router.post('/register', requireAuth, async (req, res) => {
+router.get('/', async (req, res) => {
+  console.log('GET /devices', req.user);
+  const devices = await Device.find().select('deviceId name lastSeen settings').lean();
+  res.json({ ok: true, devices });
+});
+
+router.post('/register', async (req, res) => {
   const { error, value } = registerDeviceSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
@@ -25,7 +31,7 @@ router.post('/register', requireAuth, async (req, res) => {
 
 router.post('/', async (req, res) => {
   const payload = req.body;
-  console.log(object)
+  console.log(object);
   if (error) return res.status(400).json({ error: error.message });
   const exists = await Device.findOne({ deviceId: value.deviceId });
   if (exists) return res.status(400).json({ error: 'deviceId already registered' });
