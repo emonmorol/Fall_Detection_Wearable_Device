@@ -4,6 +4,7 @@ import verifySignature from '../middleware/verifySignature.js';
 import { fanoutAlert } from '../services/alerts.js';
 import Reading from '../models/reading.js';
 import device from '../models/device.js';
+import { parseRangeToMs } from '../utils/time.js';
 
 export default function buildReadingRoutes(io) {
   const router = Router();
@@ -60,9 +61,10 @@ export default function buildReadingRoutes(io) {
     const fill = req.query.fill !== 'false'; // default: true
 
     // Explicit since/until overrides range
-    const sinceQ = req.query.since ? new Date(String(req.query.since)) : null;
-    const untilQ = req.query.until ? new Date(String(req.query.until)) : null;
-
+    const untilQ = new Date();
+    const sinceQ = req.query.range ? new Date(Date.now() - parseRangeToMs(req.query.range)) : null;
+    console.log(req.query);
+    console.log(sinceQ, untilQ);
     const bucketSpec =
       bucket === '1h'
         ? { unit: 'hour' }
@@ -155,13 +157,13 @@ export default function buildReadingRoutes(io) {
 
         const map = new Map(items.map((it) => [new Date(it.t).getTime(), it]));
         const filled = [];
-        for (let ts = startMs; ts <= endMs; ts += stepMs) {
-          const got = map.get(ts);
+        for (let createdAt = startMs; createdAt <= endMs; createdAt += stepMs) {
+          const got = map.get(createdAt);
           if (got) {
             filled.push(got);
           } else {
             filled.push({
-              t: new Date(ts).toISOString(),
+              t: new Date(createdAt).toISOString(),
               hrAvg: null,
               spo2Avg: null,
               count: 0,
@@ -170,7 +172,7 @@ export default function buildReadingRoutes(io) {
         }
         items = filled;
       }
-
+      // console.log(items);
       res.json({
         ok: true,
         items,
@@ -192,7 +194,7 @@ export default function buildReadingRoutes(io) {
   router.get('/latest', async (req, res) => {
     const { deviceId } = req.query;
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
-    const r = await Reading.findOne({ deviceId }).sort({ ts: -1 }).lean();
+    const r = await Reading.findOne({ deviceId }).sort({ createdAt: -1 }).lean();
     res.json({ ok: true, reading: r });
   });
 
@@ -200,7 +202,17 @@ export default function buildReadingRoutes(io) {
     const limit = Math.max(1, Math.min(50, Number(req.query.limit) || 5));
     const q = {};
     if (req.query.deviceId) q.deviceId = req.query.deviceId;
-    const items = await Reading.find(q).sort({ ts: -1 }).limit(limit).lean();
+    const items = await Reading.find({
+      ...q,
+      hr: { $gt: 0 },
+      spo2: { $gt: 0 },
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    console.log(items);
+    // const itemss = await Reading.find(q).sort({ ts: -1 }).limit(limit).lean();
+    // console.log(itemss);
     res.json({ ok: true, items });
   });
 

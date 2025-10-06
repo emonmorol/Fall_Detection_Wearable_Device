@@ -31,7 +31,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const payload = req.body;
-  console.log(object);
+  // console.log(object);
   if (error) return res.status(400).json({ error: error.message });
   const exists = await Device.findOne({ deviceId: value.deviceId });
   if (exists) return res.status(400).json({ error: 'deviceId already registered' });

@@ -18,7 +18,7 @@ async function shouldDeliver(deviceId, rule) {
 }
 
 export async function fanoutAlert({ deviceId, rule, value }) {
-  console.log('FANOUT ALERT', await shouldDeliver(deviceId, rule));
+  // console.log('FANOUT ALERT', await shouldDeliver(deviceId, rule));
   if (!(await shouldDeliver(deviceId, rule))) return;
   const text = `ALERT (${deviceId}): ${rule} = ${value}`;
   const deliveredTo = [];
@@ -26,7 +26,7 @@ export async function fanoutAlert({ deviceId, rule, value }) {
   if (twilio && twilioFrom && twilioTo) {
     try {
       const msg = await twilio.messages.create({ from: twilioFrom, to: twilioTo, body: text });
-      console.log('Twilio sent', msg);
+      // console.log('Twilio sent', msg);
       deliveredTo.push('whatsapp');
     } catch {}
   }

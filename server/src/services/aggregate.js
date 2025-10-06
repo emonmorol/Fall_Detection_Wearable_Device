@@ -24,5 +24,5 @@ const res = await Reading.aggregate([
   { $sort: { '_id.minute': 1 } },
 ]);
 
-console.log(res);
+// console.log(res);
 await mongoose.disconnect();

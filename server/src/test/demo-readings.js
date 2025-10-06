@@ -19,5 +19,5 @@ function generateReadings(count = 100) {
 async function seed() {
   const readings = generateReadings(100);
   await Reading.insertMany(readings);
-  console.log('Inserted', readings.length, 'demo readings');
+  // console.log('Inserted', readings.length, 'demo readings');
 }

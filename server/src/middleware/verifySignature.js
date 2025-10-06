@@ -3,7 +3,7 @@ import Device from '../models/device.js';
 
 export default async function verifySignature(req, res, next) {
   try {
-    console.log('verifySignature middleware', req.headers);
+    // console.log('verifySignature middleware', req.headers);
     const deviceId = req.header('X-Device-Id');
     const signature = req.header('X-Signature');
     if (!deviceId || !signature)

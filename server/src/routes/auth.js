@@ -6,7 +6,7 @@ import User from '../models/User.js';
 const router = Router();
 
 router.post('/register', async (req, res) => {
-  console.log('hit');
+  // console.log('hit');
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'missing fields' });
   const exists = await User.findOne({ email });
