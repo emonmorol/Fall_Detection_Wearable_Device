@@ -9,8 +9,6 @@ import {
 	Monitor,
 	Shield,
 	ChevronDown,
-	Calendar,
-	TrendingUp,
 	AlertCircle,
 	CheckCircle,
 	Database,

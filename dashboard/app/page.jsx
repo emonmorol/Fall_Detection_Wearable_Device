@@ -10,6 +10,13 @@ import {
 	Shield,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { toKpi } from "@/utils/constants";
+import dynamic from "next/dynamic";
+
+const RealtimeReadingsChart = dynamic(
+	() => import("@/components/realtime-reading-chart"),
+	{ ssr: false }
+);
 
 export default function OverviewPage() {
 	const [kpi, setKpi] = useState({});
@@ -23,7 +30,8 @@ export default function OverviewPage() {
 			try {
 				setLoading(true);
 				const s = await api("/api/stats/overview?range=24h");
-				setKpi(s.kpi || {});
+
+				setKpi(toKpi(s));
 				console.log("stats:", s);
 				const r = await api("/api/readings/recent?limit=5");
 				setRecentR(r.items || []);
@@ -38,7 +46,53 @@ export default function OverviewPage() {
 			}
 		})();
 	}, []);
-	console.log("KPI:", kpi);
+	console.log("kpi:", kpi);
+
+	const kpiData = [
+		{
+			title: "Active Devices",
+			value: kpi.activeDevices ?? "--",
+			icon: <Zap className="w-5 h-5" />,
+			trend: "+2 from yesterday", // keep or compute later
+			color: "from-emerald-500 to-teal-600",
+			bgColor: "bg-emerald-50",
+		},
+		{
+			title: "Readings",
+			value: kpi.readings24h ?? "--",
+			icon: <TrendingUp className="w-5 h-5" />,
+			trend: "+12% from yesterday",
+			color: "from-blue-500 to-indigo-600",
+			bgColor: "bg-blue-50",
+		},
+		{
+			title: "Alerts",
+			value: kpi.alerts24h ?? "--",
+			icon: <AlertTriangle className="w-5 h-5" />,
+			trend: "-2 from yesterday",
+			color: "from-orange-500 to-red-500",
+			bgColor: "bg-orange-50",
+			isAlert: true,
+		},
+		{
+			title: "Min Oxygen (SpO₂)",
+			value: kpi.minSpO2 != null ? `${kpi.minSpO2}` : "--",
+			icon: <Heart className="w-5 h-5" />,
+			trend: "Within normal range",
+			color: "from-pink-500 to-rose-600",
+			bgColor: "bg-pink-50",
+		},
+		{
+			title: "Max Heart Rate",
+			value: kpi.maxHr != null ? `${kpi.maxHr}%` : "--",
+			icon: <Heart className="w-5 h-5" />,
+			trend: "Within normal range",
+			color: "from-pink-500 to-rose-600",
+			bgColor: "bg-pink-50",
+		},
+	];
+
+	console.log(kpiData);
 
 	if (loading) {
 		return (
@@ -98,39 +152,28 @@ export default function OverviewPage() {
 				)}
 
 				{/* KPI Cards */}
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-					<KpiCard
-						title="Active Devices"
-						value={kpi.activeDevices ?? "--"}
-						icon={<Zap className="w-5 h-5" />}
-						trend="+2 from yesterday"
-						color="from-emerald-500 to-teal-600"
-						bgColor="bg-emerald-50"
-					/>
-					<KpiCard
-						title="Readings (24h)"
-						value={kpi.readings24h ?? "--"}
-						icon={<TrendingUp className="w-5 h-5" />}
-						trend="+12% from yesterday"
-						color="from-blue-500 to-indigo-600"
-						bgColor="bg-blue-50"
-					/>
-					<KpiCard
-						title="Alerts (24h)"
-						value={kpi.alerts24h ?? "--"}
-						icon={<AlertTriangle className="w-5 h-5" />}
-						trend="-2 from yesterday"
-						color="from-orange-500 to-red-500"
-						bgColor="bg-orange-50"
-						isAlert={true}
-					/>
-					<KpiCard
-						title="Min SpO₂ (24h)"
-						value={kpi.minSpO2 ? `${kpi.minSpO2}%` : "--"}
-						icon={<Heart className="w-5 h-5" />}
-						trend="Within normal range"
-						color="from-pink-500 to-rose-600"
-						bgColor="bg-pink-50"
+				<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+					{kpiData &&
+						kpiData.map((card) => (
+							<KpiCard
+								key={card.title}
+								title={card.title}
+								value={card.value}
+								icon={card.icon}
+								// trend={card.trend}
+								color={card.color}
+								bgColor={card.bgColor}
+								isAlert={card.isAlert}
+							/>
+						))}
+				</div>
+
+				<div className="grid gap-8">
+					<RealtimeReadingsChart
+						deviceId="all"
+						range="1d"
+						bucket="15m"
+						live={false}
 					/>
 				</div>
 
@@ -293,17 +336,17 @@ function KpiCard({
 }) {
 	return (
 		<div
-			className={`group relative bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-lg transition-all duration-300 overflow-hidden ${bgColor}`}
+			className={`group relative bg-white rounded-2xl p-4 shadow-sm border border-slate-200 hover:shadow-lg transition-all duration-300 overflow-hidden ${bgColor}`}
 		>
 			{/* Background gradient effect */}
 			<div
 				className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl ${color} opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity`}
 			></div>
 
-			<div className="relative z-10">
-				<div className="flex items-center justify-between mb-4">
+			<div className="flex justify-between relative z-10">
+				<div className="flex items-center justify-between">
 					<div
-						className={`w-10 h-10 bg-gradient-to-r ${color} rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}
+						className={`w-13 h-13 bg-gradient-to-r ${color} rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}
 					>
 						{icon}
 					</div>
@@ -316,15 +359,15 @@ function KpiCard({
 					<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
 						{title}
 					</p>
-					<p className="text-3xl font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
+					<p className="text-3xl font-bold text-slate-900 text-right group-hover:text-slate-700 transition-colors">
 						{value}
 					</p>
-					{trend && (
+					{/* {trend && (
 						<p className="text-xs text-slate-500 flex items-center space-x-1">
 							<TrendingUp className="w-3 h-3" />
 							<span>{trend}</span>
 						</p>
-					)}
+					)} */}
 				</div>
 			</div>
 		</div>

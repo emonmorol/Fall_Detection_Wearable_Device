@@ -16,6 +16,8 @@ const ReadingSchema = new Schema(
   { timestamps: true },
 );
 
-ReadingSchema.index({ deviceId: 1, ts: 1 });
+ReadingSchema.index({ deviceId: 1, createdAt: 1 }); 
+ReadingSchema.index({ createdAt: 1 });
+ReadingSchema.index({ ts: 1 });
 
 export default model('Reading', ReadingSchema);

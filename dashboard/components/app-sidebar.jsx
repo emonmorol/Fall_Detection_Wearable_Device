@@ -2,26 +2,15 @@
 
 import * as React from "react";
 import {
-	IconCamera,
 	IconChartBar,
 	IconDashboard,
-	IconDatabase,
-	IconFileAi,
-	IconFileDescription,
-	IconFileWord,
 	IconFolder,
-	IconHelp,
 	IconInnerShadowTop,
 	IconListDetails,
-	IconReport,
-	IconSearch,
-	IconSettings,
 	IconUsers,
 } from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
-import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 import {
 	Sidebar,
@@ -81,7 +70,7 @@ export function AppSidebar({ ...props }) {
 							<a href="#">
 								<IconInnerShadowTop className="!size-5" />
 								<span className="text-base font-semibold">
-									Fall Detection
+									AuraLink
 								</span>
 							</a>
 						</SidebarMenuButton>

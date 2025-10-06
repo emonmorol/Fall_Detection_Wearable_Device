@@ -1,33 +1,22 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
+// src/lib/socket.js
 import { io } from "socket.io-client";
 
-export function useDeviceSocket(deviceId) {
-	const [connected, setConnected] = useState(false);
-	const [last, setLast] = useState(null);
-	const sockRef = useRef(null);
+let _socket = null;
 
-	useEffect(() => {
-		if (!deviceId) return;
-		const s = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
-			withCredentials: true,
-			transports: ["websocket"],
-			reconnectionDelayMax: 5000,
-		});
-		sockRef.current = s;
+export function getSocket() {
+	if (_socket) return _socket;
 
-		s.on("connect", () => setConnected(true));
-		s.on("disconnect", () => setConnected(false));
-		s.emit("joinDevice", deviceId);
-		s.on("reading", (p) => {
-			if (p.deviceId === deviceId) setLast(p);
-		});
+	// Prefer explicit socket URL, else fall back to API base or same-origin
+	const base =
+		process.env.NEXT_PUBLIC_SOCKET_URL ||
+		process.env.NEXT_PUBLIC_API_BASE ||
+		"";
 
-		return () => {
-			s.emit("joinDevice", "");
-			s.disconnect();
-		};
-	}, [deviceId]);
+	_socket = io(base, {
+		transports: ["websocket"],
+		withCredentials: true,
+		reconnectionDelayMax: 5000,
+	});
 
-	return { connected, last };
+	return _socket;
 }
