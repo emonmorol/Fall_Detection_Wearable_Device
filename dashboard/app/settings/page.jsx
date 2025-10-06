@@ -25,7 +25,7 @@ export default function SettingsPage() {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 p-6 min-h-screen bg-slate-50">
 			<h1 className="text-xl font-semibold">Settings</h1>
 			<form onSubmit={registerDevice} className="flex gap-2">
 				<Input

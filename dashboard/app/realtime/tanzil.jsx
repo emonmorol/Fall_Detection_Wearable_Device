@@ -14,15 +14,16 @@ import {
 	History,
 } from "lucide-react";
 
+import { useDeviceSocket } from "../../lib/socket";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { useDeviceSocket } from "@/hooks/useDeviceSocket";
+import { Table } from "@/components/ui/table";
 
 export default function RealtimePage() {
 	const [devices, setDevices] = useState([]);
 	const [deviceId, setDeviceId] = useState("");
 	const [loading, setLoading] = useState(true);
-	const [expanded, setExpanded] = useState(true);
+	const [expanded, setExpanded] = useState(false);
 	const [history, setHistory] = useState([]);
 	const { connected, last } = useDeviceSocket(deviceId);
 
@@ -179,7 +180,7 @@ export default function RealtimePage() {
 				</div>
 
 				{/* Device Selection */}
-				<div className="flex justify-between items-center bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+				<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
 					<div className="flex items-center justify-between mb-4">
 						<div className="flex items-center space-x-3">
 							<Monitor className="w-5 h-5 text-slate-600" />
@@ -187,6 +188,12 @@ export default function RealtimePage() {
 								Device Selection
 							</h2>
 						</div>
+						{selectedDevice && (
+							<div className="text-sm text-slate-500 flex items-center space-x-2">
+								<CircleDot className="w-4 h-4 text-blue-500" />
+								<span>Active: {selectedDevice.name}</span>
+							</div>
+						)}
 					</div>
 
 					<div className="relative">
@@ -245,6 +252,40 @@ export default function RealtimePage() {
 								Please select a device from the dropdown above
 								to start monitoring.
 							</p>
+						</div>
+					</div>
+				)}
+
+				{/* Device Info */}
+				{deviceId && selectedDevice && (
+					<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+						<div className="flex items-center justify-between">
+							<div>
+								<h3 className="text-lg font-semibold text-slate-900 mb-1">
+									{selectedDevice.name}
+								</h3>
+								<p className="text-slate-500 text-sm">
+									Device ID: {selectedDevice.deviceId}
+								</p>
+							</div>
+							<div className="flex items-center space-x-4 text-sm">
+								<div className="flex items-center space-x-2">
+									<Zap className="w-4 h-4 text-green-500" />
+									<span className="text-slate-600">
+										Active
+									</span>
+								</div>
+								<div className="flex items-center space-x-2">
+									<Activity className="w-4 h-4 text-blue-500" />
+									<span className="text-slate-600">
+										{latestUpdateTs
+											? `Updated ${new Date(
+													latestUpdateTs
+											  ).toLocaleTimeString()}`
+											: "Waiting for data..."}
+									</span>
+								</div>
+							</div>
 						</div>
 					</div>
 				)}
@@ -363,39 +404,6 @@ export default function RealtimePage() {
 						</div>
 					</div>
 				)}
-				{/* Device Info */}
-				{deviceId && selectedDevice && (
-					<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-						<div className="flex items-center justify-between">
-							<div>
-								<h3 className="text-lg font-semibold text-slate-900 mb-1">
-									{selectedDevice.name}
-								</h3>
-								<p className="text-slate-500 text-sm">
-									Device ID: {selectedDevice.deviceId}
-								</p>
-							</div>
-							<div className="flex items-center space-x-4 text-sm">
-								<div className="flex items-center space-x-2">
-									<Zap className="w-4 h-4 text-green-500" />
-									<span className="text-slate-600">
-										Active
-									</span>
-								</div>
-								<div className="flex items-center space-x-2">
-									<Activity className="w-4 h-4 text-blue-500" />
-									<span className="text-slate-600">
-										{latestUpdateTs
-											? `Updated ${new Date(
-													latestUpdateTs
-											  ).toLocaleTimeString()}`
-											: "Waiting for data..."}
-									</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				)}
 			</div>
 		</div>
 	);
@@ -420,10 +428,10 @@ function VitalsTile({
 				className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${color} opacity-10 rounded-full blur-3xl group-hover:opacity-20 transition-opacity`}
 			></div>
 
-			<div className="flex justify-between  items-center relative z-10">
-				<div className="flex items-center justify-between">
+			<div className="relative z-10">
+				<div className="flex items-center justify-between mb-6">
 					<div
-						className={`w-18 h-18 bg-gradient-to-r ${color} rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}
+						className={`w-12 h-12 bg-gradient-to-r ${color} rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}
 					>
 						{icon}
 					</div>

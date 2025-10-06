@@ -12,6 +12,7 @@ import {
 import { api } from "../lib/api";
 import { toKpi } from "@/utils/constants";
 import dynamic from "next/dynamic";
+import { useDeviceSocket } from "@/hooks/useDeviceSocket";
 
 const RealtimeReadingsChart = dynamic(
 	() => import("@/components/realtime-reading-chart"),
@@ -24,6 +25,20 @@ export default function OverviewPage() {
 	const [recentA, setRecentA] = useState([]);
 	const [err, setErr] = useState("");
 	const [loading, setLoading] = useState(true);
+	const [deviceId, setDeviceId] = useState("");
+	const { connected, last } = useDeviceSocket(deviceId);
+
+	useEffect(() => {
+		(async () => {
+			try {
+				setLoading(true);
+				const d = await api("/api/devices");
+				if (d.devices?.[0]) setDeviceId(d.devices[0].deviceId);
+			} finally {
+				setLoading(false);
+			}
+		})();
+	}, []);
 
 	useEffect(() => {
 		(async () => {
@@ -33,10 +48,10 @@ export default function OverviewPage() {
 
 				setKpi(toKpi(s));
 				console.log("stats:", s);
-				const r = await api("/api/readings/recent?limit=5");
+				const r = await api("/api/readings/recent?limit=10");
 				setRecentR(r.items || []);
 				console.log("readings:", r);
-				const a = await api("/api/alerts/recent?limit=5");
+				const a = await api("/api/alerts/recent?limit=10");
 				setRecentA(a.items || []);
 				console.log("alerts:", a);
 			} catch (e) {
@@ -45,7 +60,7 @@ export default function OverviewPage() {
 				setLoading(false);
 			}
 		})();
-	}, []);
+	}, [last]);
 	console.log("kpi:", kpi);
 
 	const kpiData = [
@@ -96,7 +111,7 @@ export default function OverviewPage() {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+			<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4">
 				<div className="mx-auto space-y-6">
 					<div className="flex items-center space-x-3">
 						<div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg animate-pulse"></div>
@@ -106,7 +121,7 @@ export default function OverviewPage() {
 						{[...Array(4)].map((_, i) => (
 							<div
 								key={i}
-								className="bg-white rounded-xl p-6 shadow-sm animate-pulse"
+								className="bg-white rounded-xl p-4 shadow-sm animate-pulse"
 							>
 								<div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
 								<div className="h-8 bg-gray-200 rounded w-16"></div>
@@ -119,8 +134,8 @@ export default function OverviewPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-			<div className="mx-auto space-y-8">
+		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4">
+			<div className="mx-auto space-y-4">
 				{/* Header */}
 				<div className="flex items-center justify-between">
 					<div className="flex items-center space-x-4">
@@ -178,145 +193,207 @@ export default function OverviewPage() {
 				</div>
 
 				{/* Recent Data */}
-				<div className="grid lg:grid-cols-2 gap-8">
-					{/* Recent Readings */}
-					<section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-						<div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6">
-							<div className="flex items-center space-x-3">
-								<div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-									<Activity className="w-4 h-4 text-white" />
-								</div>
-								<h2 className="text-lg font-semibold text-white">
+				<div className="grid lg:grid-cols-2 gap-6">
+					{/* Recent Readings Table */}
+					<section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+						<div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+							<div className="flex items-center space-x-2">
+								<Activity className="w-5 h-5 text-white" />
+								<h2 className="text-base font-semibold text-white">
 									Recent Readings
 								</h2>
 							</div>
 						</div>
-						<div className="p-6">
-							<div className="space-y-4">
-								{recentR.length > 0 ? (
-									recentR.map((x, i) => (
-										<div
-											key={i}
-											className="group bg-slate-50 hover:bg-slate-100 rounded-xl p-4 transition-all duration-200 hover:shadow-md border border-slate-100"
-										>
-											<div className="flex justify-between items-start mb-3">
-												<div className="flex items-center space-x-2">
-													<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-													<span className="font-mono text-sm font-medium text-slate-700">
-														{x.deviceId}
+						<div className="overflow-x-auto">
+							{recentR.length > 0 ? (
+								<table className="w-full">
+									<thead>
+										<tr className="bg-slate-50 border-b border-slate-200">
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												Device
+											</th>
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												HR
+											</th>
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												SpO₂
+											</th>
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												Time
+											</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-slate-100">
+										{recentR.map((x, i) => (
+											<tr
+												key={i}
+												className="hover:bg-slate-50 transition-colors"
+											>
+												<td className="px-6 py-4 whitespace-nowrap">
+													<div className="flex items-center space-x-2">
+														<div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+														<span className="text-sm font-medium text-slate-900">
+															{x.deviceId}
+														</span>
+													</div>
+												</td>
+												<td className="px-6 py-4 whitespace-nowrap">
+													<div className="flex items-center space-x-2">
+														<Heart className="w-4 h-4 text-rose-500" />
+														<span className="text-sm font-semibold text-slate-900">
+															{x.hr}
+														</span>
+													</div>
+												</td>
+												<td className="px-6 py-4 whitespace-nowrap">
+													<div className="flex items-center space-x-2">
+														<div className="w-4 h-4 bg-blue-500 rounded flex items-center justify-center">
+															<div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+														</div>
+														<span className="text-sm font-semibold text-slate-900">
+															{x.spo2}%
+														</span>
+													</div>
+												</td>
+												<td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+													{new Date(
+														x.createdAt
+													).toLocaleDateString(
+														"en-GB",
+														{
+															day: "numeric",
+															month: "long",
+														}
+													)}
+													<span className="text-slate-400 mx-1">
+														•
 													</span>
-												</div>
-												<span className="text-xs text-slate-500">
 													{new Date(
 														x.ts
-													).toLocaleString()}
-												</span>
-											</div>
-											<div className="flex items-center space-x-6">
-												<div className="flex items-center space-x-2">
-													<Heart className="w-4 h-4 text-red-500" />
-													<span className="text-sm font-medium">
-														HR: {x.hr}
-													</span>
-												</div>
-												<div className="flex items-center space-x-2">
-													<div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-														<div className="w-2 h-2 bg-white rounded-full"></div>
-													</div>
-													<span className="text-sm font-medium">
-														SpO₂: {x.spo2}%
-													</span>
-												</div>
-											</div>
-											<div className="mt-3 flex items-center space-x-2">
-												<Shield className="w-3 h-3 text-slate-400" />
-												<span className="text-xs text-slate-500">
-													Flags:{" "}
-													{Object.entries(
-														x.flags || {}
-													)
-														.filter(([_, v]) => v)
-														.map(([k]) =>
-															k.replace("_", " ")
-														)
-														.join(", ") || "none"}
-												</span>
-											</div>
-										</div>
-									))
-								) : (
-									<div className="text-center py-8 text-slate-500">
-										<Activity className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-										<p className="text-sm">
-											No recent readings available
-										</p>
-									</div>
-								)}
-							</div>
+													).toLocaleTimeString(
+														"en-US",
+														{
+															hour: "numeric",
+															minute: "2-digit",
+															hour12: true,
+														}
+													)}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							) : (
+								<div className="text-center py-12">
+									<Activity className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+									<p className="text-sm text-slate-500">
+										No readings available
+									</p>
+								</div>
+							)}
 						</div>
 					</section>
 
-					{/* Recent Alerts */}
-					<section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-						<div className="bg-gradient-to-r from-orange-500 to-red-500 p-6">
-							<div className="flex items-center space-x-3">
-								<div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-									<AlertTriangle className="w-4 h-4 text-white" />
-								</div>
-								<h2 className="text-lg font-semibold text-white">
+					{/* Recent Alerts Table */}
+					<section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+						<div className="bg-gradient-to-r from-amber-500 to-red-500 px-6 py-4">
+							<div className="flex items-center space-x-2">
+								<AlertTriangle className="w-5 h-5 text-white" />
+								<h2 className="text-base font-semibold text-white">
 									Recent Alerts
 								</h2>
 							</div>
 						</div>
-						<div className="p-6">
-							<div className="space-y-4">
-								{recentA.length > 0 ? (
-									recentA.map((a) => (
-										<div
-											key={a._id}
-											className="group bg-red-50 hover:bg-red-100 rounded-xl p-4 transition-all duration-200 hover:shadow-md border border-red-100"
-										>
-											<div className="flex justify-between items-start mb-3">
-												<div className="flex items-center space-x-2">
-													<div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-													<span className="font-mono text-sm font-medium text-slate-700">
-														{a.deviceId}
-													</span>
-												</div>
-												<span className="text-xs text-slate-500">
-													{new Date(
-														a.ts
-													).toLocaleString()}
-												</span>
-											</div>
-											<div className="space-y-2">
-												<div className="flex items-center space-x-2">
-													<AlertTriangle className="w-4 h-4 text-red-500" />
+						<div className="overflow-x-auto">
+							{recentA.length > 0 ? (
+								<table className="w-full">
+									<thead>
+										<tr className="bg-slate-50 border-b border-slate-200">
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												Device
+											</th>
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												Alert
+											</th>
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												Value
+											</th>
+											<th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+												Time
+											</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-slate-100">
+										{recentA.map((a) => (
+											<tr
+												key={a._id}
+												className="hover:bg-red-50 transition-colors"
+											>
+												<td className="px-6 py-4 whitespace-nowrap">
+													<div className="flex items-center space-x-2">
+														<div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+														<span className="text-sm font-medium text-slate-900">
+															{a.deviceId}
+														</span>
+													</div>
+												</td>
+												<td className="px-6 py-4">
 													<span className="text-sm font-medium text-red-700">
-														{a.rule}
+														{a.rule &&
+														a.rule === "spo2Low"
+															? "Low Oxygen Level"
+															: a.rule ===
+															  "hrHigh"
+															? "High Heart Rate"
+															: a.rule === "hrLow"
+															? "Low Heart Rate"
+															: a.rule}
 													</span>
-												</div>
-												<div className="text-sm text-slate-600 ml-6">
-													Threshold value:{" "}
-													<span className="font-semibold">
+												</td>
+												<td className="px-6 py-4 whitespace-nowrap">
+													<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
 														{a.value}
 													</span>
-												</div>
-											</div>
-										</div>
-									))
-								) : (
-									<div className="text-center py-8 text-slate-500">
-										<Shield className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-										<p className="text-sm">
-											No recent alerts
-										</p>
-										<p className="text-xs text-slate-400 mt-1">
-											All systems operating normally
-										</p>
-									</div>
-								)}
-							</div>
+												</td>
+												<td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+													{new Date(
+														a.createdAt
+													).toLocaleDateString(
+														"en-GB",
+														{
+															day: "numeric",
+															month: "long",
+														}
+													)}
+													<span className="text-slate-400 mx-1">
+														•
+													</span>
+													{new Date(
+														a.createdAt
+													).toLocaleTimeString(
+														"en-US",
+														{
+															hour: "numeric",
+															minute: "2-digit",
+															hour12: true,
+														}
+													)}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							) : (
+								<div className="text-center py-12">
+									<Shield className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+									<p className="text-sm text-slate-500">
+										No alerts
+									</p>
+									<p className="text-xs text-slate-400 mt-1">
+										All systems normal
+									</p>
+								</div>
+							)}
 						</div>
 					</section>
 				</div>

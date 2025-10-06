@@ -2,16 +2,13 @@
 import { useEffect, useState } from "react";
 import {
 	FileText,
-	Heart,
-	Activity,
 	Filter,
-	Clock,
 	Monitor,
-	Shield,
 	ChevronDown,
+	Database,
 	AlertCircle,
 	CheckCircle,
-	Database,
+	Activity,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -20,6 +17,7 @@ export default function ReadingsPage() {
 	const [devices, setDevices] = useState([]);
 	const [items, setItems] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [rowsPerPage, setRowsPerPage] = useState(10);
 
 	useEffect(() => {
 		(async () => {
@@ -27,9 +25,9 @@ export default function ReadingsPage() {
 				setLoading(true);
 				const d = await api("/api/devices");
 				setDevices(d.devices || []);
-				console.log("devices:", d);
-				const r = await api("/api/readings/recent?limit=20");
-				console.log("readings:", r);
+				const r = await api(
+					`/api/readings/recent?limit=${rowsPerPage}`
+				);
 				setItems(r.items || []);
 			} finally {
 				setLoading(false);
@@ -42,7 +40,24 @@ export default function ReadingsPage() {
 		setLoading(true);
 		try {
 			const r = await api(
-				`/api/readings/recent?limit=20${id ? `&deviceId=${id}` : ""}`
+				`/api/readings/recent?limit=${rowsPerPage}${
+					id ? `&deviceId=${id}` : ""
+				}`
+			);
+			setItems(r.items || []);
+		} finally {
+			setLoading(false);
+		}
+	}
+
+	async function handleRowsChange(rows) {
+		setRowsPerPage(rows);
+		setLoading(true);
+		try {
+			const r = await api(
+				`/api/readings/recent?limit=${rows}${
+					deviceId ? `&deviceId=${deviceId}` : ""
+				}`
 			);
 			setItems(r.items || []);
 		} finally {
@@ -55,54 +70,39 @@ export default function ReadingsPage() {
 
 		if (flags?.low_spo2 || hr > 120 || hr < 50) {
 			return {
-				status: "critical",
+				status: "Critical",
 				color: "text-red-600",
 				bgColor: "bg-red-50",
 				borderColor: "border-red-200",
-				icon: <AlertCircle className="w-4 h-4" />,
+				icon: <AlertCircle className="w-3.5 h-3.5" />,
 			};
 		} else if (flags?.high_hr || flags?.low_hr || spo2 < 95) {
 			return {
-				status: "warning",
-				color: "text-orange-600",
-				bgColor: "bg-orange-50",
-				borderColor: "border-orange-200",
-				icon: <AlertCircle className="w-4 h-4" />,
+				status: "Warning",
+				color: "text-amber-600",
+				bgColor: "bg-amber-50",
+				borderColor: "border-amber-200",
+				icon: <AlertCircle className="w-3.5 h-3.5" />,
 			};
 		} else {
 			return {
-				status: "normal",
-				color: "text-green-600",
-				bgColor: "bg-green-50",
-				borderColor: "border-green-200",
-				icon: <CheckCircle className="w-4 h-4" />,
+				status: "Normal",
+				color: "text-emerald-600",
+				bgColor: "bg-emerald-50",
+				borderColor: "border-emerald-200",
+				icon: <CheckCircle className="w-3.5 h-3.5" />,
 			};
 		}
 	};
 
 	if (loading) {
 		return (
-			<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-				<div className="mx-auto space-y-6">
-					<div className="flex items-center space-x-3">
-						<div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg animate-pulse"></div>
-						<div className="h-8 bg-gray-200 rounded-lg w-32 animate-pulse"></div>
-					</div>
-					<div className="bg-white rounded-xl p-6 shadow-sm">
-						<div className="h-10 bg-gray-200 rounded-lg w-48 animate-pulse"></div>
-					</div>
-					<div className="grid md:grid-cols-2 gap-4">
-						{[...Array(6)].map((_, i) => (
-							<div
-								key={i}
-								className="bg-white rounded-xl p-6 shadow-sm animate-pulse"
-							>
-								<div className="h-4 bg-gray-200 rounded w-32 mb-3"></div>
-								<div className="h-6 bg-gray-200 rounded w-24 mb-2"></div>
-								<div className="h-3 bg-gray-200 rounded w-20"></div>
-							</div>
-						))}
-					</div>
+			<div className="min-h-screen bg-slate-50 p-6 flex items-center justify-center">
+				<div className="text-center space-y-4">
+					<div className="animate-spin mx-auto w-12 h-12 border-3 border-slate-200 border-t-slate-600 rounded-full"></div>
+					<p className="text-slate-600 font-medium">
+						Loading readings...
+					</p>
 				</div>
 			</div>
 		);
@@ -111,194 +111,207 @@ export default function ReadingsPage() {
 	const selectedDevice = devices.find((d) => d.deviceId === deviceId);
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-			<div className="mx-auto space-y-8">
+		<div className="min-h-screen bg-slate-50 p-6">
+			<div className="mx-auto space-y-6">
 				{/* Header */}
 				<div className="flex items-center justify-between">
 					<div className="flex items-center space-x-4">
-						<div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-							<FileText className="w-5 h-5 text-white" />
+						<div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center">
+							<Activity className="w-6 h-6 text-white" />
 						</div>
 						<div>
-							<h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+							<h1 className="text-2xl font-bold text-slate-900">
 								Patient Readings
 							</h1>
-							<p className="text-slate-500 text-sm mt-1">
-								Historical vital signs and measurements
+							<p className="text-slate-500 text-sm">
+								Monitor vital signs and health metrics
 							</p>
 						</div>
 					</div>
 
-					<div className="flex items-center space-x-3 text-sm text-slate-500">
-						<Database className="w-4 h-4" />
-						<span>{items.length} readings found</span>
+					<div className="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg border border-slate-200">
+						<Database className="w-4 h-4 text-slate-400" />
+						<span className="text-sm font-medium text-slate-700">
+							{items.length}
+						</span>
+						<span className="text-sm text-slate-500">records</span>
 					</div>
 				</div>
 
-				{/* Filter Section */}
-				<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-					<div className="flex items-center justify-between mb-4">
-						<div className="flex items-center space-x-3">
-							<Filter className="w-5 h-5 text-slate-600" />
-							<h2 className="text-lg font-semibold text-slate-900">
-								Filter Readings
-							</h2>
-						</div>
-						{selectedDevice && (
-							<div className="text-sm text-slate-500 flex items-center space-x-2">
-								<Monitor className="w-4 h-4 text-blue-500" />
-								<span>Filtered by: {selectedDevice.name}</span>
-							</div>
-						)}
-					</div>
-
-					<div className="relative">
-						<select
-							className="w-full md:w-96 appearance-none bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:shadow-md"
-							value={deviceId}
-							onChange={(e) => filterDevice(e.target.value)}
-						>
-							<option value="">All devices</option>
-							{devices.map((d) => (
-								<option key={d.deviceId} value={d.deviceId}>
-									{d.name} ({d.deviceId})
-								</option>
-							))}
-						</select>
-						<ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-					</div>
-				</div>
-
-				{/* Readings Grid */}
-				{items.length > 0 ? (
-					<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{items.map((x, i) => {
-							const statusInfo = getStatusInfo(x);
-							return (
-								<div
-									key={i}
-									className={`group relative bg-white rounded-2xl p-6 shadow-sm border transition-all duration-300 hover:shadow-lg ${statusInfo.borderColor} ${statusInfo.bgColor}`}
+				{/* Controls Bar */}
+				<div className="bg-white rounded-xl border border-slate-200 p-4">
+					<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+						{/* Device Filter */}
+						<div className="flex-1 max-w-md">
+							<label className="text-xs font-medium text-slate-700 mb-2 block uppercase tracking-wide">
+								Device Filter
+							</label>
+							<div className="relative">
+								<select
+									className="w-full appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+									value={deviceId}
+									onChange={(e) =>
+										filterDevice(e.target.value)
+									}
 								>
-									{/* Status indicator */}
-									<div className="absolute top-4 right-4">
-										<div
-											className={`flex items-center space-x-1 ${statusInfo.color}`}
+									<option value="">All devices</option>
+									{devices.map((d) => (
+										<option
+											key={d.deviceId}
+											value={d.deviceId}
 										>
-											{statusInfo.icon}
-										</div>
-									</div>
+											{d.name} ({d.deviceId})
+										</option>
+									))}
+								</select>
+								<ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+							</div>
+						</div>
 
-									{/* Device info */}
-									<div className="mb-4">
-										<div className="flex items-center space-x-2 mb-2">
-											<Monitor className="w-4 h-4 text-slate-500" />
-											<span className="font-mono text-sm font-medium text-slate-700">
-												{x.deviceId}
-											</span>
-										</div>
-										<div className="flex items-center space-x-2 text-xs text-slate-500">
-											<Clock className="w-3 h-3" />
-											<span>
-												{new Date(
-													x.ts
-												).toLocaleString()}
-											</span>
-										</div>
-									</div>
-
-									{/* Vitals */}
-									<div className="space-y-3 mb-4">
-										<div className="flex items-center justify-between">
-											<div className="flex items-center space-x-2">
-												<Heart className="w-5 h-5 text-red-500" />
-												<span className="text-sm font-medium text-slate-600">
-													Heart Rate
-												</span>
-											</div>
-											<span className="text-lg font-bold text-slate-900">
-												{x.hr}{" "}
-												<span className="text-sm font-normal text-slate-500">
-													bpm
-												</span>
-											</span>
-										</div>
-
-										<div className="flex items-center justify-between">
-											<div className="flex items-center space-x-2">
-												<Activity className="w-5 h-5 text-blue-500" />
-												<span className="text-sm font-medium text-slate-600">
-													SpO₂
-												</span>
-											</div>
-											<span className="text-lg font-bold text-slate-900">
-												{x.spo2}{" "}
-												<span className="text-sm font-normal text-slate-500">
-													%
-												</span>
-											</span>
-										</div>
-									</div>
-
-									{/* Flags */}
-									<div className="border-t border-slate-100 pt-3">
-										<div className="flex items-center space-x-2 mb-2">
-											<Shield className="w-3 h-3 text-slate-400" />
-											<span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-												Status Flags
-											</span>
-										</div>
-										<div className="flex flex-wrap gap-1">
-											{Object.entries(x.flags || {})
-												.filter(([_, v]) => v)
-												.map(([k], idx) => (
-													<span
-														key={idx}
-														className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-															k.includes("low") ||
-															k.includes("high")
-																? "bg-orange-100 text-orange-700"
-																: k === "normal"
-																? "bg-green-100 text-green-700"
-																: "bg-slate-100 text-slate-700"
-														}`}
-													>
-														{k
-															.replace("_", " ")
-															.replace(
-																/\b\w/g,
-																(l) =>
-																	l.toUpperCase()
-															)}
-													</span>
-												))}
-											{(!x.flags ||
-												Object.keys(x.flags).length ===
-													0) && (
-												<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-													No flags
-												</span>
-											)}
-										</div>
-									</div>
-								</div>
-							);
-						})}
-					</div>
-				) : (
-					<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12">
-						<div className="text-center">
-							<FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-							<h3 className="text-xl font-semibold text-slate-600 mb-2">
-								No Readings Found
-							</h3>
-							<p className="text-slate-500">
-								{deviceId
-									? `No readings available for the selected device.`
-									: `No readings available. Check back later for patient data.`}
-							</p>
+						{/* Rows Per Page */}
+						<div className="w-full md:w-auto">
+							<label className="text-xs font-medium text-slate-700 mb-2 block uppercase tracking-wide">
+								Rows Per Page
+							</label>
+							<div className="relative">
+								<select
+									className="w-full md:w-32 appearance-none bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+									value={rowsPerPage}
+									onChange={(e) =>
+										handleRowsChange(Number(e.target.value))
+									}
+								>
+									<option value={5}>5</option>
+									<option value={10}>10</option>
+									<option value={20}>20</option>
+									<option value={50}>50</option>
+									<option value={100}>100</option>
+								</select>
+								<ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+							</div>
 						</div>
 					</div>
-				)}
+
+					{selectedDevice && (
+						<div className="mt-4 pt-4 border-t border-slate-100 flex items-center space-x-2 text-sm">
+							<Monitor className="w-4 h-4 text-slate-400" />
+							<span className="text-slate-600">
+								Active filter:
+							</span>
+							<span className="font-medium text-slate-900">
+								{selectedDevice.name}
+							</span>
+						</div>
+					)}
+				</div>
+
+				{/* Modern Table */}
+				<div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+					<div className="overflow-x-auto">
+						<table className="w-full">
+							<thead>
+								<tr className="border-b border-slate-200">
+									<th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+										Timestamp
+									</th>
+									<th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+										Heart Rate
+									</th>
+									<th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+										SpO₂
+									</th>
+									<th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+										Status
+									</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-slate-100">
+								{items.length > 0 ? (
+									items.map((reading, i) => {
+										const status = getStatusInfo(reading);
+										const date = new Date(reading.ts);
+										const dateStr = date.toLocaleDateString(
+											"en-US",
+											{
+												month: "short",
+												day: "numeric",
+												year: "numeric",
+											}
+										);
+										const timeStr = date.toLocaleTimeString(
+											"en-US",
+											{
+												hour: "2-digit",
+												minute: "2-digit",
+											}
+										);
+
+										return (
+											<tr
+												key={i}
+												className="hover:bg-slate-50 transition-colors"
+											>
+												<td className="px-6 py-4">
+													<div className="flex flex-col">
+														<span className="text-sm font-medium text-slate-900">
+															{dateStr}
+														</span>
+														<span className="text-xs text-slate-500">
+															{timeStr}
+														</span>
+													</div>
+												</td>
+												<td className="px-6 py-4">
+													<span className="text-sm font-semibold text-slate-900">
+														{reading.hr}
+													</span>
+													<span className="text-xs text-slate-500 ml-1">
+														bpm
+													</span>
+												</td>
+												<td className="px-6 py-4">
+													<span className="text-sm font-semibold text-slate-900">
+														{reading.spo2}
+													</span>
+													<span className="text-xs text-slate-500 ml-1">
+														%
+													</span>
+												</td>
+												<td className="px-6 py-4">
+													<div
+														className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${status.bgColor} ${status.color} ${status.borderColor}`}
+													>
+														{status.icon}
+														{status.status}
+													</div>
+												</td>
+											</tr>
+										);
+									})
+								) : (
+									<tr>
+										<td
+											colSpan="4"
+											className="px-6 py-16 text-center"
+										>
+											<div className="flex flex-col items-center space-y-3">
+												<div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
+													<FileText className="w-6 h-6 text-slate-400" />
+												</div>
+												<p className="text-sm font-medium text-slate-900">
+													No readings found
+												</p>
+												<p className="text-xs text-slate-500">
+													Try adjusting your filters
+												</p>
+											</div>
+										</td>
+									</tr>
+								)}
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
 		</div>
 	);

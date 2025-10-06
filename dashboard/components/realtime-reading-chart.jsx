@@ -311,7 +311,7 @@ export default function RealtimeReadingsChart({
 	return (
 		<Card className="overflow-hidden border-slate-200 shadow-sm pt-0 gap-0">
 			{/* Header */}
-			<div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 p-4 md:p-6">
+			<div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 p-4 md:p-4">
 				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 					<div className="flex items-center gap-3">
 						<div className="bg-blue-500 p-2 rounded-lg">
@@ -398,8 +398,8 @@ export default function RealtimeReadingsChart({
 
 			{/* Controls Panel */}
 			{showControls && (
-				<div className="flex justify-center bg-slate-50 border-b border-slate-200 p-4">
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+				<div className="w-full flex justify-center bg-slate-50 border-b border-slate-200 p-4">
+					<div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pl-20">
 						{/* Time Range Control */}
 						<div className="space-y-2 lg:col-span-2">
 							<Label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
@@ -566,7 +566,7 @@ export default function RealtimeReadingsChart({
 				<div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white border-b border-slate-100">
 					{showHR && (
 						<>
-							<div className="flex justify-center border rounded-lg p-2 shadow-md">
+							<div className="flex justify-center border-l-5 border-green-500 rounded-lg p-2 py-4 shadow-md">
 								<div className="space-y-1">
 									<div className="flex items-center gap-1.5">
 										<Activity className="w-3.5 h-3.5 text-red-500" />
@@ -582,7 +582,7 @@ export default function RealtimeReadingsChart({
 									</p>
 								</div>
 							</div>
-							<div className="flex justify-center border rounded-lg p-2 shadow-md">
+							<div className="flex justify-center border-l-5 border-red-500 rounded-lg p-2 py-4 shadow-md">
 								<div className="space-y-1">
 									<p className="text-xs font-medium text-slate-600">
 										HR Range
@@ -600,7 +600,7 @@ export default function RealtimeReadingsChart({
 					)}
 					{showSpO2 && (
 						<>
-							<div className="flex justify-center border rounded-lg p-2 shadow-md">
+							<div className="flex justify-center border-l-5 border-blue-500 rounded-lg p-2 py-4 shadow-md">
 								<div className="space-y-1">
 									<div className="flex items-center gap-1.5">
 										<Droplet className="w-3.5 h-3.5 text-blue-500" />
@@ -616,7 +616,7 @@ export default function RealtimeReadingsChart({
 									</p>
 								</div>
 							</div>
-							<div className="flex justify-center border rounded-lg p-2 shadow-md">
+							<div className="flex justify-center border-l-5 border-yellow-500 rounded-lg p-2 py-4 shadow-md">
 								<div className="space-y-1">
 									<p className="text-xs font-medium text-slate-600">
 										SpO₂ Range
@@ -636,7 +636,7 @@ export default function RealtimeReadingsChart({
 			</div>
 
 			{/* Chart */}
-			<div className="p-4 md:p-6">
+			<div className="p-4 md:p-4">
 				<div className="h-80 md:h-96">
 					{data.length > 0 ? (
 						<ResponsiveContainer width="100%" height="100%">
@@ -774,9 +774,9 @@ export default function RealtimeReadingsChart({
 									/>
 								)}
 								<Brush
-									height={30}
-									travellerWidth={10}
-									stroke="#94a3b8"
+									height={15}
+									travellerWidth={5}
+									stroke="#4e8554ff"
 									fill="#f8fafc"
 								/>
 							</LineChart>
