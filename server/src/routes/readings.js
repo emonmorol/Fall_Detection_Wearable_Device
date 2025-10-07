@@ -15,7 +15,8 @@ export default function buildReadingRoutes(io) {
     const { error, value } = readingSchema.validate(req.body);
     // console.log(error, value);
     if (error) return res.status(400).json({ error: error.message });
-
+    const flags = { hrLow: false, hrHigh: false, spo2Low: false };
+    
     // sanity bounds
     if (value.hr < 30 || value.hr > 220) value.hr = 0;
     if (value.spo2 < 70 || value.spo2 > 100) value.spo2 = 0;
@@ -43,12 +44,33 @@ export default function buildReadingRoutes(io) {
       { upsert: false },
     );
     // alerts (dedup handled inside)
-    if (value.flags.hrLow)
-      await fanoutAlert({ deviceId: value.deviceId, rule: 'hrLow', value: value.hr });
-    if (value.flags.hrHigh)
-      await fanoutAlert({ deviceId: value.deviceId, rule: 'hrHigh', value: value.hr });
-    if (value.flags.spo2Low)
-      await fanoutAlert({ deviceId: value.deviceId, rule: 'spo2Low', value: value.spo2 });
+    if (value?.flags?.hrLow) {
+      await fanoutAlert({
+        deviceId: value.deviceId,
+        rule: 'hrLow',
+        value: value.hr,
+        ts: value.ts,
+        meta: { hr: value.hr, spo2: value.spo2 },
+      });
+    }
+    if (value?.flags?.hrHigh) {
+      await fanoutAlert({
+        deviceId: value.deviceId,
+        rule: 'hrHigh',
+        value: value.hr,
+        ts: value.ts,
+        meta: { hr: value.hr, spo2: value.spo2 },
+      });
+    }
+    if (value?.flags?.spo2Low) {
+      await fanoutAlert({
+        deviceId: value.deviceId,
+        rule: 'spo2Low',
+        value: value.spo2,
+        ts: value.ts,
+        meta: { hr: value.hr, spo2: value.spo2 },
+      });
+    }
 
     res.json({ ok: true });
   });

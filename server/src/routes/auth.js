@@ -1,32 +1,70 @@
-import { Router } from 'express';
+import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { requireAuth } from '../middleware/auth.js';
 
-const router = Router();
+const router = express.Router();
 
+// POST /api/auth/register
 router.post('/register', async (req, res) => {
-  // console.log('hit');
-  const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'missing fields' });
-  const exists = await User.findOne({ email });
-  if (exists) return res.status(400).json({ error: 'user exists' });
-  const passwordHash = await bcrypt.hash(password, 10);
-  const u = await User.create({ email, passwordHash });
-  res.json({ ok: true, id: u._id });
-}); 
+  try {
+    const { email, password, phone = '' } = req.body || {};
+    if (!email || !password)
+      return res.status(400).json({ ok: false, error: 'Email & password required' });
 
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(409).json({ ok: false, error: 'Email already registered' });
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await User.create({ email, passwordHash, phone });
+
+    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: '7d',
+    });
+    return res.json({
+      ok: true,
+      token,
+      user: { id: user._id, email: user.email, phone: user.phone },
+    });
+  } catch (err) {
+    console.error('register error', err);
+    return res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// POST /api/auth/login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body || {};
-  const u = await User.findOne({ email });
-  if (!u) return res.status(400).json({ error: 'invalid credentials' });
-  const ok = await bcrypt.compare(password, u.passwordHash);
-  if (!ok) return res.status(400).json({ error: 'invalid credentials' });
-  const access = jwt.sign({ uid: u._id, email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-  const refresh = jwt.sign({ uid: u._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
-  res.cookie('access', access, { httpOnly: true, sameSite: 'lax', secure: false });
-  res.cookie('refresh', refresh, { httpOnly: true, sameSite: 'lax', secure: false });
-  res.json({ ok: true });
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password)
+      return res.status(400).json({ ok: false, error: 'Email & password required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid credentials' });
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return res.status(401).json({ ok: false, error: 'Invalid credentials' });
+
+    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: '7d',
+    });
+    return res.json({
+      ok: true,
+      token,
+      user: { id: user._id, email: user.email, phone: user.phone },
+    });
+  } catch (err) {
+    console.error('login error', err);
+    return res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// GET /api/auth/me (protected)
+router.get('/me', requireAuth, async (req, res) => {
+  const user = await User.findById(req.user.id).select('_id email phone');
+  if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+  return res.json({ ok: true, user: { id: user._id, email: user.email, phone: user.phone } });
 });
 
 export default router;

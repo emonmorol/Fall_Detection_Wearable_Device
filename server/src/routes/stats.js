@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import Device from '../models/device.js';
 import Reading from '../models/reading.js';
-import Alert from '../models/alert.js';
 import { parseRangeToMs } from '../utils/time.js';
+import Alert from '../models/Alert.js';
 
 const router = Router();
 

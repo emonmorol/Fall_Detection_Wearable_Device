@@ -8,15 +8,15 @@ const ReadingSchema = new Schema(
     spo2: { type: Number, default: -1 }, // -1 if invalid
 
     flags: {
-      hrLow: { type: Boolean, default: false },
-      hrHigh: { type: Boolean, default: false },
-      spo2Low: { type: Boolean, default: false },
+      hrLow: { type: Boolean, default: false, optional: true },
+      hrHigh: { type: Boolean, default: false, optional: true },
+      spo2Low: { type: Boolean, default: false, optional: true },
     },
   },
   { timestamps: true },
 );
 
-ReadingSchema.index({ deviceId: 1, createdAt: 1 }); 
+ReadingSchema.index({ deviceId: 1, createdAt: 1 });
 ReadingSchema.index({ createdAt: 1 });
 ReadingSchema.index({ ts: 1 });
 
