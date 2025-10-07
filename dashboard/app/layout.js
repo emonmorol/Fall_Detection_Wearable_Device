@@ -3,6 +3,7 @@ import "./globals.css";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
+import { AuthProvider } from "@/context/AuthContext";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -25,19 +26,21 @@ export default function RootLayout({ children }) {
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
-				<SidebarProvider
-					style={{
-						"--sidebar-width": "calc(var(--spacing) * 72)",
-						"--header-height": "calc(var(--spacing) * 12)",
-					}}
-				>
-					<AppSidebar variant="inset" />
-					<SidebarInset>
-						<SiteHeader />
+				<AuthProvider>
+					<SidebarProvider
+						style={{
+							"--sidebar-width": "calc(var(--spacing) * 72)",
+							"--header-height": "calc(var(--spacing) * 12)",
+						}}
+					>
+						<AppSidebar variant="inset" />
+						<SidebarInset>
+							<SiteHeader />
 
-						<div>{children}</div>
-					</SidebarInset>
-				</SidebarProvider>
+							<div>{children}</div>
+						</SidebarInset>
+					</SidebarProvider>
+				</AuthProvider>
 			</body>
 		</html>
 	);
