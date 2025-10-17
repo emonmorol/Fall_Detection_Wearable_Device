@@ -4,13 +4,16 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import bodyParser from 'body-parser';
 
 import authRoutes from '../routes/auth.js';
 import deviceRoutes from '../routes/devices.js';
 import buildReadingRoutes from '../routes/readings.js';
 import alertRoutes from '../routes/alerts.js';
 import stateRoutes from '../routes/stats.js';
+import emergencyRoutes from '../routes/emergency.js';
 import config from '../config.js';
+import modelEval from '../routes/model_eval.js';
 
 export default function buildExpress(io) {
   const app = express();
@@ -36,6 +39,7 @@ export default function buildExpress(io) {
       credentials: true,
     }),
   );
+  app.use(bodyParser.json({ limit: '2mb' }));
 
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
@@ -44,6 +48,8 @@ export default function buildExpress(io) {
   app.use('/api/readings', buildReadingRoutes(io));
   app.use('/api/alerts', alertRoutes);
   app.use('/api/stats', stateRoutes);
+  app.use('/api/emergency', emergencyRoutes);
+  app.use('/api/model-eval', modelEval(io));
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
   app.get('/', (_req, res) =>

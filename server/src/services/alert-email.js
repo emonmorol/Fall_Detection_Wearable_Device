@@ -56,7 +56,7 @@ function htmlFall(a) {
     ['SpO₂', a.spo2 ? `${a.spo2}%` : '—'],
     ['Note', a.note || '—'],
   ];
-  return htmlFrame('FALL DETECTED', rows);
+  return htmlFrame('FALL DETECTED Emergency', rows);
 }
 
 function labelForRule(rule) {
@@ -120,7 +120,7 @@ export async function sendFallEmail(alert) {
 }
 
 export async function sendAlertEmail(a) {
-  console.log(a);
+  // console.log(a);
   const key = `${a.deviceId || 'unknown'}:${a.rule || 'ALERT'}`;
   const now = Date.now();
   if (lastSent.has(key) && now - (lastSent.get(key) || 0) < COOLDOWN_MS) return; // cooldown
@@ -134,6 +134,6 @@ export async function sendAlertEmail(a) {
     .map((s) => s.trim())
     .filter(Boolean);
   if (!to.length) throw new Error('ALERT_EMAIL_TO not configured');
-  console.log('Email object:', { to, subject, html });
+  // console.log('Email object:', { to, subject, html });
   await sendMail(to, subject, html);
 }

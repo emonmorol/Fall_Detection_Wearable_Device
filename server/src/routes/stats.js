@@ -4,6 +4,7 @@ import Device from '../models/device.js';
 import Reading from '../models/reading.js';
 import { parseRangeToMs } from '../utils/time.js';
 import Alert from '../models/Alert.js';
+import fallProbabilities from '../models/probabilities.js';
 
 const router = Router();
 
@@ -192,6 +193,17 @@ router.get('/overview', async (req, res) => {
       error: 'OVERVIEWFAILED',
       message: err?.message || 'Unexpected error',
     });
+  }
+});
+
+router.get('/:deviceId', async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const docs = await fallProbabilities.find({ deviceId }).sort({ ts: -1 }).limit(100).lean();
+    res.status(200).json(docs.reverse());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch fall probabilities' });
   }
 });
 

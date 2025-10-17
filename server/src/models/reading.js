@@ -6,7 +6,7 @@ const ReadingSchema = new Schema(
     ts: { type: Date, index: true },
     hr: { type: Number, default: -1 }, // -1 if invalid
     spo2: { type: Number, default: -1 }, // -1 if invalid
-
+    
     flags: {
       hrLow: { type: Boolean, default: false, optional: true },
       hrHigh: { type: Boolean, default: false, optional: true },

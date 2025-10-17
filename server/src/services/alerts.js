@@ -83,6 +83,6 @@ export async function fanoutAlert({
     );
     throw e;
   }
-
+  console.log(`[Alert] device=${deviceId} rule=${rule} value=${value} ts=${ts}`, meta);
   return { ok: true, id: alert._id };
 }

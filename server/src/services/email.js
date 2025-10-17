@@ -22,7 +22,6 @@ export const sendMail = async (to, subject, html) => {
     await transporter.verify();
     console.log('✅ SMTP server is ready to take messages');
     console.log('Sending email to:', to, 'Subject:', subject);
-    console.log('Email content:', html);
     // Send email
     const info = await transporter.sendMail({
       from: `"AuraLink" <${config.nodemailer.admin_email}>`,

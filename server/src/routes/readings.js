@@ -1,200 +1,209 @@
 import { Router } from 'express';
-import { readingSchema } from '../utils/validation.js';
-import verifySignature from '../middleware/verifySignature.js';
 import { fanoutAlert } from '../services/alerts.js';
 import Reading from '../models/reading.js';
+import ImuReading from '../models/imu.js';
 import device from '../models/device.js';
 import { parseRangeToMs } from '../utils/time.js';
+import { pushIMUData } from '../services/buffer.js';
 
 export default function buildReadingRoutes(io) {
   const router = Router();
 
   // Ingest from device
   router.post('/', async (req, res) => {
-    console.log('POST /readings', req.body);
-    const { error, value } = readingSchema.validate(req.body);
-    // console.log(error, value);
-    if (error) return res.status(400).json({ error: error.message });
-    const flags = { hrLow: false, hrHigh: false, spo2Low: false };
-    
-    // sanity bounds
+    console.log('POST /readings');
+    const value = req.body;
+    // if (error) return res.status(400).json({ error: error.message });
+    // console.log('this is value', value);
+    const flags = value?.flags || { hrLow: false, hrHigh: false, spo2Low: false };
+
+    // --- Sanity bounds ---
     if (value.hr < 30 || value.hr > 220) value.hr = 0;
     if (value.spo2 < 70 || value.spo2 > 100) value.spo2 = 0;
 
+    // --- Create HR/SpO2 Reading ---
     const doc = await Reading.create({
       deviceId: value.deviceId,
       ts: new Date(value.ts),
       hr: value.hr,
       spo2: value.spo2,
-      flags: value.flags,
+      flags,
     });
 
-    // realtime
-    io.to(value.deviceId).emit('reading', {
-      deviceId: value.deviceId,
-      ts: doc.ts,
-      hr: doc.hr,
-      spo2: doc.spo2,
-      flags: doc.flags,
-    });
+    // --- Push IMU data into buffer & DB ---
+    if (value.imu && Array.isArray(value.imu) && value.imu.length > 0) {
+      pushIMUData(value.deviceId, value.imu);
+      // Bulk insert to Mongo for logging/history
+      const imuDocs = value.imu.map((sample) => ({
+        deviceId: value.deviceId,
+        ax: sample.ax,
+        ay: sample.ay,
+        az: sample.az,
+        gx: sample.gx,
+        gy: sample.gy,
+        gz: sample.gz,
+      }));
+      await ImuReading.insertMany(imuDocs);
+    }
 
+    if (io) {
+      // --- Emit realtime data ---
+      io.to(value.deviceId).emit('reading', {
+        deviceId: value.deviceId,
+        ts: doc.ts,
+        hr: doc.hr,
+        spo2: doc.spo2,
+        flags: doc.flags,
+      });
+    }
+
+    // --- Update device last seen ---
     await device.updateOne(
       { deviceId: value.deviceId },
       { $set: { lastSeen: Date.now() } },
       { upsert: false },
     );
-    // alerts (dedup handled inside)
-    if (value?.flags?.hrLow) {
-      await fanoutAlert({
-        deviceId: value.deviceId,
-        rule: 'hrLow',
-        value: value.hr,
-        ts: value.ts,
-        meta: { hr: value.hr, spo2: value.spo2 },
-      });
-    }
-    if (value?.flags?.hrHigh) {
-      await fanoutAlert({
-        deviceId: value.deviceId,
-        rule: 'hrHigh',
-        value: value.hr,
-        ts: value.ts,
-        meta: { hr: value.hr, spo2: value.spo2 },
-      });
-    }
-    if (value?.flags?.spo2Low) {
-      await fanoutAlert({
-        deviceId: value.deviceId,
-        rule: 'spo2Low',
-        value: value.spo2,
-        ts: value.ts,
-        meta: { hr: value.hr, spo2: value.spo2 },
-      });
+
+    // --- Trigger alerts ---
+    const rules = [
+      { key: 'hrLow', cond: flags.hrLow },
+      { key: 'hrHigh', cond: flags.hrHigh },
+      { key: 'spo2Low', cond: flags.spo2Low },
+    ];
+
+    for (const r of rules) {
+      if (r.cond) {
+        await fanoutAlert({
+          deviceId: value.deviceId,
+          rule: r.key,
+          value: value[r.key === 'spo2Low' ? 'spo2' : 'hr'],
+          ts: value.ts,
+          meta: { hr: value.hr, spo2: value.spo2 },
+        });
+      }
     }
 
     res.json({ ok: true });
   });
 
   router.get('/series', async (req, res) => {
-    const deviceId = String(req.query.deviceId || 'all');
-    const bucket = String(req.query.bucket || '15m'); // sensible default for days
-    const range = String(req.query.range || '10d'); // e.g., 10d, 30d, 24h, all
-    const tz = String(req.query.tz || 'UTC'); // timezone for dateTrunc
-    const fill = req.query.fill !== 'false'; // default: true
-
-    // Explicit since/until overrides range
-    const untilQ = new Date();
-    const sinceQ = req.query.range ? new Date(Date.now() - parseRangeToMs(req.query.range)) : null;
-    console.log(req.query);
-    console.log(sinceQ, untilQ);
-    const bucketSpec =
-      bucket === '1h'
-        ? { unit: 'hour' }
-        : bucket === '15m'
-          ? { unit: 'minute', binSize: 15 }
-          : bucket === '5m'
-            ? { unit: 'minute', binSize: 5 }
-            : { unit: 'minute' };
-
-    const stepMs =
-      bucket === '1h' ? 3600e3 : bucket === '15m' ? 900e3 : bucket === '5m' ? 300e3 : 60e3;
-
-    const now = new Date();
-    let since = null;
-    let until = untilQ && !isNaN(untilQ) ? untilQ : now;
-
-    if (sinceQ && !isNaN(sinceQ)) {
-      since = sinceQ;
-    } else if (range !== 'all') {
-      const m = range.match(/(\d+)([mhdw])/i);
-      const mult = { m: 60e3, h: 3600e3, d: 86400e3, w: 604800e3 };
-      const dur = m ? Number(m[1]) * (mult[m[2]] || 86400e3) : 10 * 86400e3;
-      since = new Date(until.getTime() - dur);
-    }
-    // if range=all and no since=… -> we won’t time-filter (match everything)
-
-    const pipeline = [
-      // unify time
-      { $addFields: { eventTime: { $ifNull: ['$ts', '$createdAt'] } } },
-    ];
-
-    const match = {
-      // ignore invalids
-      $or: [{ hr: { $gt: 0 } }, { spo2: { $gt: 0 } }],
-    };
-    if (deviceId !== 'all') match.deviceId = deviceId;
-    if (since) match.eventTime = { ...(match.eventTime || {}), $gte: since };
-    if (until) match.eventTime = { ...(match.eventTime || {}), $lte: until };
-    pipeline.push({ $match: match });
-
-    pipeline.push({
-      $project: {
-        hr: 1,
-        spo2: 1,
-        bucket: { $dateTrunc: { date: '$eventTime', timezone: tz, ...bucketSpec } },
-      },
-    });
-
-    pipeline.push({
-      $group: {
-        _id: '$bucket',
-        hrAvg: { $avg: { $cond: [{ $gt: ['$hr', 0] }, '$hr', null] } },
-        spo2Avg: { $avg: { $cond: [{ $gt: ['$spo2', 0] }, '$spo2', null] } },
-        count: { $sum: 1 },
-      },
-    });
-
-    pipeline.push(
-      { $project: { _id: 0, t: '$_id', hrAvg: 1, spo2Avg: 1, count: 1 } },
-      { $sort: { t: 1 } },
-    );
-
     try {
-      let items = await Reading.aggregate(pipeline).allowDiskUse(true).exec();
+      const deviceId = String(req.query.deviceId || 'all');
+      const bucket = String(req.query.bucket || '1m'); // default every minute
+      const range = String(req.query.range || '24h'); // default 24h
+      const tz = String(req.query.tz || 'UTC');
+      const fill = req.query.fill !== 'false'; // default: true
 
-      // Optional gap filling
-      if (fill) {
-        // Determine start/end for filling
-        let startMs;
-        let endMs;
+      // --- time calculations ---
+      const until = new Date();
+      let since = null;
 
-        if (since) {
-          startMs = Math.floor(since.getTime() / stepMs) * stepMs;
-        } else if (items.length) {
-          startMs = Math.floor(new Date(items[0].t).getTime() / stepMs) * stepMs;
-        } else {
-          // no data at all; return empty if no since specified
-          startMs = since
-            ? Math.floor(since.getTime() / stepMs) * stepMs
-            : Math.floor(now.getTime() / stepMs) * stepMs;
+      if (range !== 'all') {
+        try {
+          since = new Date(Date.now() - parseRangeToMs(range));
+        } catch {
+          since = new Date(Date.now() - 24 * 3600e3); // fallback 24h
         }
+      }
 
-        if (until) {
-          endMs = Math.floor(until.getTime() / stepMs) * stepMs;
-        } else if (items.length) {
-          endMs = Math.floor(new Date(items[items.length - 1].t).getTime() / stepMs) * stepMs;
-        } else {
-          endMs = startMs;
-        }
+      // --- bucket spec ---
+      const bucketSpec =
+        bucket === '1h'
+          ? { unit: 'hour' }
+          : bucket === '15m'
+            ? { unit: 'minute', binSize: 15 }
+            : bucket === '5m'
+              ? { unit: 'minute', binSize: 5 }
+              : { unit: 'minute' };
 
-        const map = new Map(items.map((it) => [new Date(it.t).getTime(), it]));
+      const stepMs =
+        bucket === '1h' ? 3600e3 : bucket === '15m' ? 900e3 : bucket === '5m' ? 300e3 : 60e3;
+
+      // --- pipeline ---
+      const pipeline = [
+        { $addFields: { eventTime: { $ifNull: ['$ts', '$createdAt'] } } },
+        {
+          $match: {
+            $and: [
+              { $or: [{ hr: { $gt: 0 } }, { spo2: { $gt: 0 } }] },
+              deviceId !== 'all' ? { deviceId } : {},
+              since ? { eventTime: { $gte: since } } : {},
+              until ? { eventTime: { $lte: until } } : {},
+            ].filter(Boolean),
+          },
+        },
+        {
+          $project: {
+            hr: 1,
+            spo2: 1,
+            bucket: {
+              $dateTrunc: {
+                date: '$eventTime',
+                timezone: tz,
+                ...bucketSpec,
+              },
+            },
+          },
+        },
+        {
+          $group: {
+            _id: '$bucket',
+            hrAvg: {
+              $avg: { $cond: [{ $gt: ['$hr', 0] }, '$hr', null] },
+            },
+            spo2Avg: {
+              $avg: { $cond: [{ $gt: ['$spo2', 0] }, '$spo2', null] },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            t: '$_id',
+            hrAvg: 1,
+            spo2Avg: 1,
+            count: 1,
+          },
+        },
+        { $sort: { t: 1 } },
+      ];
+
+      let items = await Reading.aggregate(pipeline).allowDiskUse(true);
+
+      // --- Fill gaps ---
+      if (fill && items.length) {
+        const startMs = Math.floor(new Date(items[0].t).getTime() / stepMs) * stepMs;
+        const endMs = Math.floor(new Date(items[items.length - 1].t).getTime() / stepMs) * stepMs;
+        const map = new Map(items.map((x) => [new Date(x.t).getTime(), x]));
         const filled = [];
-        for (let createdAt = startMs; createdAt <= endMs; createdAt += stepMs) {
-          const got = map.get(createdAt);
-          if (got) {
-            filled.push(got);
-          } else {
+
+        for (let t = startMs; t <= endMs; t += stepMs) {
+          const got = map.get(t);
+          if (got) filled.push(got);
+          else
             filled.push({
-              t: new Date(createdAt).toISOString(),
+              t: new Date(t).toISOString(),
               hrAvg: null,
               spo2Avg: null,
               count: 0,
             });
-          }
         }
         items = filled;
+      } else if (!items.length && since) {
+        // fill empty range (so chart shows axes)
+        const startMs = since.getTime();
+        const endMs = until.getTime();
+        for (let t = startMs; t <= endMs; t += stepMs) {
+          items.push({
+            t: new Date(t).toISOString(),
+            hrAvg: null,
+            spo2Avg: null,
+            count: 0,
+          });
+        }
       }
-      // console.log(items);
+
       res.json({
         ok: true,
         items,
@@ -205,6 +214,7 @@ export default function buildReadingRoutes(io) {
         until: until ? until.toISOString() : null,
         tz,
         filled: !!fill,
+        count: items.length,
       });
     } catch (e) {
       console.error('series error:', e);
@@ -232,7 +242,7 @@ export default function buildReadingRoutes(io) {
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
-    console.log(items);
+    // console.log(items);
     // const itemss = await Reading.find(q).sort({ ts: -1 }).limit(limit).lean();
     // console.log(itemss);
     res.json({ ok: true, items });

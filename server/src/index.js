@@ -18,7 +18,6 @@ const io = new IOServer(server, {
 // Express app (mounted onto same server)
 const app = buildExpress(io);
 server.on('request', app);
-
 // Socket handlers
 io.on('connection', (socket) => {
   socket.on('joinDevice', (deviceId) => socket.join(deviceId));
