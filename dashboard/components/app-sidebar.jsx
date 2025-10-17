@@ -50,6 +50,11 @@ const data = {
 			icon: IconFolder,
 		},
 		{
+			title: "Fall History",
+			url: "/fall-history",
+			icon: IconUsers,
+		},
+		{
 			title: "Settings",
 			url: "/settings",
 			icon: IconUsers,

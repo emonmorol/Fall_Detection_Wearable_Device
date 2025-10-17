@@ -184,12 +184,7 @@ export default function OverviewPage() {
 				</div>
 
 				<div className="grid gap-8">
-					<RealtimeReadingsChart
-						deviceId="all"
-						range="1d"
-						bucket="15m"
-						live={false}
-					/>
+					<RealtimeReadingsChart deviceId={deviceId} />
 				</div>
 
 				{/* Recent Data */}

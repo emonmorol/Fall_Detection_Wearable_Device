@@ -25,50 +25,34 @@ import {
 	Brush,
 } from "recharts";
 import {
-	Activity,
-	Droplet,
+	AlertTriangle,
 	Play,
 	Pause,
 	Settings2,
 	Download,
-	Calendar,
 	Clock,
 } from "lucide-react";
+import { useFallSocket } from "@/hooks/useFallSocket";
 import { api } from "@/lib/api";
-import { useDeviceSocket } from "@/hooks/useDeviceSocket";
 
-export default function RealtimeReadingsChart({ deviceId }) {
+export default function FallProbChartEnhanced({ deviceId }) {
 	const [data, setData] = useState([]);
 	const [isLive, setIsLive] = useState(true);
 	const [showControls, setShowControls] = useState(false);
 	const [bucket, setBucket] = useState("1m");
 	const [range, setRange] = useState("24h");
 	const [loading, setLoading] = useState(true);
+	const { connected, inference } = useFallSocket(deviceId);
 
-	// --- useDeviceSocket hook ---
-	const { connected, last } = useDeviceSocket(deviceId);
-
-	// --- Fetch historical data ---
-	// --- Fetch historical data ---
+	// Fetch data from backend with filters
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-				const qs = new URLSearchParams({
-					deviceId,
-					range,
-					bucket,
-					fill: "true",
-				});
-				const res = await api(`/api/readings/series?${qs.toString()}`);
-				if (res.ok && Array.isArray(res.items)) {
-					setData(res.items);
-				} else {
-					setData([]);
-				}
-				console.log(data);
+				const qs = new URLSearchParams({ range, bucket });
+				const res = await api(`/api/stats/${deviceId}?${qs}`);
+				setData(res);
 			} catch (err) {
-				console.error("Failed to fetch device data:", err);
-				setData([]);
+				console.error("Failed to fetch fall probability data", err);
 			} finally {
 				setLoading(false);
 			}
@@ -76,81 +60,60 @@ export default function RealtimeReadingsChart({ deviceId }) {
 		fetchData();
 	}, [deviceId, range, bucket]);
 
-	console.log(loading);
-
-	// --- Realtime updates (no reload) ---
+	// Realtime update handler
 	useEffect(() => {
-		if (!isLive || !last?.ts) return;
+		if (!inference || !isLive) return;
+		setData((prev) => [...prev.slice(-200), inference]);
+	}, [inference, isLive]);
 
-		const point = {
-			t: new Date(last.ts),
-			hrAvg: last.hr ?? null,
-			spo2Avg: last.spo2 ?? null,
-		};
-
-		setData((prev) => {
-			// avoid dup if same timestamp arrives twice
-			const prevTs = prev.length ? +prev[prev.length - 1].t : null;
-			if (prevTs === +point.t) return prev;
-
-			// keep last ~300 points (adjust as you like)
-			return [...prev.slice(-299), point];
-		});
-	}, [last?.ts, isLive]);
-
-	// --- Format data for chart ---
-	const formatted = useMemo(
-		() =>
-			data.map((d) => ({
-				time: new Date(d.t).toLocaleTimeString([], {
-					hour: "2-digit",
-					minute: "2-digit",
-				}),
-				hr: d.hrAvg ?? null,
-				spo2: d.spo2Avg ?? null,
-			})),
-		[data]
-	);
-
-	// --- CSV Export ---
 	const handleExport = () => {
 		const csv = [
-			["Timestamp", "Heart Rate (bpm)", "SpO₂ (%)"],
+			["Timestamp", "Fall Probability", "Is Fall"],
 			...data.map((d) => [
-				new Date(d.t).toISOString(),
-				d.hrAvg?.toFixed(1) || "N/A",
-				d.spo2Avg?.toFixed(1) || "N/A",
+				new Date(d.ts).toISOString(),
+				d.fallProb?.toFixed(3) || "N/A",
+				d.isFall ? "Yes" : "No",
 			]),
 		]
-			.map((r) => r.join(","))
+			.map((row) => row.join(","))
 			.join("\n");
 
 		const blob = new Blob([csv], { type: "text/csv" });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `readings-${deviceId}-${
-			new Date().toISOString().split("T")[0]
-		}.csv`;
+		a.download = `fall-prob-${deviceId}-${new Date().toISOString()}.csv`;
 		a.click();
 		URL.revokeObjectURL(url);
 	};
 
+	const formatted = useMemo(
+		() =>
+			data.map((d) => ({
+				time: new Date(d.ts).toLocaleTimeString([], {
+					hour: "2-digit",
+					minute: "2-digit",
+				}),
+				fallProb: d.fallProb ?? 0,
+				isFall: d.isFall,
+			})),
+		[data]
+	);
+
 	return (
-		<Card className="overflow-hidden border-slate-200 shadow-sm pt-0 gap-0">
-			{/* Header */}
-			<div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 p-4 md:p-4">
+		<Card className="overflow-hidden border-slate-200 shadow-sm pt-0">
+			<div className="bg-gradient-to-r from-rose-50 to-pink-100 border-b border-slate-200 p-4 md:p-4">
 				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 					<div className="flex items-center gap-3">
-						<div className="bg-blue-500 p-2 rounded-lg">
-							<Activity className="w-5 h-5 text-white" />
+						<div className="bg-rose-500 p-2 rounded-lg">
+							<AlertTriangle className="w-5 h-5 text-white" />
 						</div>
 						<div>
 							<h3 className="text-lg font-semibold text-slate-900">
-								Realtime Vital Signs
+								Fall Probability Monitor
 							</h3>
 							<p className="text-xs text-slate-600 mt-0.5">
-								Live monitoring of heart rate and SpO₂ readings
+								Live probability tracking and event detection
 							</p>
 						</div>
 					</div>
@@ -203,7 +166,7 @@ export default function RealtimeReadingsChart({ deviceId }) {
 								<span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
 							</span>
 							<span className="text-green-700 font-medium">
-								{connected ? "Live" : "Reconnecting..."}
+								Live
 							</span>
 						</div>
 						<span className="text-slate-400">•</span>
@@ -214,7 +177,6 @@ export default function RealtimeReadingsChart({ deviceId }) {
 				)}
 			</div>
 
-			{/* Controls */}
 			{showControls && (
 				<div className="bg-slate-50 border-b border-slate-200 p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
 					<div className="space-y-2">
@@ -259,10 +221,34 @@ export default function RealtimeReadingsChart({ deviceId }) {
 							</SelectContent>
 						</Select>
 					</div>
+
+					<div className="space-y-2">
+						<Label className="text-xs font-medium text-slate-700">
+							Custom Range
+						</Label>
+						<div className="flex gap-2">
+							<Input
+								type="number"
+								placeholder="24"
+								className="bg-white w-20"
+							/>
+							<Select>
+								<SelectTrigger className="bg-white">
+									<SelectValue placeholder="hours" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="minutes">
+										Minutes
+									</SelectItem>
+									<SelectItem value="hours">Hours</SelectItem>
+									<SelectItem value="days">Days</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
 				</div>
 			)}
 
-			{/* Chart */}
 			<div className="p-4 md:p-4">
 				<div className="h-80 md:h-96">
 					{loading ? (
@@ -282,35 +268,13 @@ export default function RealtimeReadingsChart({ deviceId }) {
 									stroke="#cbd5e1"
 								/>
 								<YAxis
-									yAxisId="left"
-									domain={[40, 180]}
+									domain={[0, 1]}
 									tick={{ fontSize: 12, fill: "#64748b" }}
-									label={{
-										value: "Heart Rate (bpm)",
-										angle: -90,
-										position: "insideLeft",
-										style: {
-											fontSize: 12,
-											fill: "#475569",
-										},
-									}}
 								/>
-								<YAxis
-									yAxisId="right"
-									orientation="right"
-									domain={[85, 100]}
-									tick={{ fontSize: 12, fill: "#64748b" }}
-									label={{
-										value: "SpO₂ (%)",
-										angle: 90,
-										position: "insideRight",
-										style: {
-											fontSize: 12,
-											fill: "#475569",
-										},
-									}}
+								<Tooltip
+									formatter={(v) => v.toFixed(3)}
+									labelFormatter={(l) => l}
 								/>
-								<Tooltip />
 								<Legend
 									wrapperStyle={{
 										fontSize: 14,
@@ -318,28 +282,17 @@ export default function RealtimeReadingsChart({ deviceId }) {
 									}}
 								/>
 								<Line
-									yAxisId="left"
 									type="monotone"
-									dataKey="hr"
+									dataKey="fallProb"
 									stroke="#ef4444"
 									strokeWidth={2.5}
 									dot={false}
-									name="Heart Rate"
-									isAnimationActive={false}
-								/>
-								<Line
-									yAxisId="right"
-									type="monotone"
-									dataKey="spo2"
-									stroke="#3b82f6"
-									strokeWidth={2.5}
-									dot={false}
-									name="SpO₂"
-									isAnimationActive={false}
+									activeDot={{ r: 6, strokeWidth: 2 }}
+									name="Fall Probability"
 								/>
 								<Brush
 									height={15}
-									stroke="#4e8554ff"
+									stroke="#ef4444"
 									fill="#f8fafc"
 								/>
 							</LineChart>
