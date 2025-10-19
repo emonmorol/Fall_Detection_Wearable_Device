@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { useFallSocket } from "@/hooks/useFallSocket"; // ✅ new hook
 import FallProbChart from "@/components/fall-prob-char";
+import { useDeviceSocket } from "@/hooks/useDeviceSocket";
 
 export default function DashboardPage() {
 	const deviceId = "30EDA02709A8";
 	const { connected, inference } = useFallSocket(deviceId);
+	const { last } = useDeviceSocket(deviceId);
 
 	const [latest, setLatest] = useState({ ts: "--", probFall: 0 });
 	const [data, setData] = useState([]);
@@ -27,6 +29,33 @@ export default function DashboardPage() {
 			setData((prev) => [...prev.slice(-100), inference]);
 		}
 	}, [inference]);
+	// Repeatedly call model evaluation every 500ms
+	useEffect(() => {
+		let intervalId;
+
+		const fetchData = async () => {
+			try {
+				const response = await fetch(
+					`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/model-eval/${deviceId}`
+				);
+				const data = await response.json();
+				console.log("model evaluation result:", data);
+			} catch (error) {
+				console.error("Error evaluating model:", error);
+			}
+		};
+
+		// Immediately fetch once
+		fetchData();
+
+		// Then repeat every 500 ms
+		intervalId = setInterval(fetchData, 500);
+
+		// Cleanup on unmount
+		return () => clearInterval(intervalId);
+	}, [deviceId]); // only restart if deviceId changes
+
+	// setInterval(async () => {}, 2000);
 
 	const isHighRisk = latest?.fallProb >= 0.7;
 

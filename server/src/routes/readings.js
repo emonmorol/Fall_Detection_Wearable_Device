@@ -11,8 +11,10 @@ export default function buildReadingRoutes(io) {
 
   // Ingest from device
   router.post('/', async (req, res) => {
-    console.log('POST /readings');
     const value = req.body;
+    // console.log('=================================================');
+    // console.log('Reading Data to post: ', value);
+    // console.log('=================================================');
     // if (error) return res.status(400).json({ error: error.message });
     // console.log('this is value', value);
     const flags = value?.flags || { hrLow: false, hrHigh: false, spo2Low: false };

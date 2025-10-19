@@ -43,7 +43,7 @@ export default function OverviewPage() {
 	useEffect(() => {
 		(async () => {
 			try {
-				setLoading(true);
+				// setLoading(true);
 				const s = await api("/api/stats/overview?range=24h");
 
 				setKpi(toKpi(s));
@@ -60,7 +60,7 @@ export default function OverviewPage() {
 				setLoading(false);
 			}
 		})();
-	}, [last]);
+	}, []);
 	console.log("kpi:", kpi);
 
 	const kpiData = [

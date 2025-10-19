@@ -29,15 +29,33 @@ export function extractFeatures(imu) {
 }
 
 export async function predictFall(inputArray) {
-  const res = await fetch('http://localhost:5001/predict', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input: inputArray }),
-  });
-  const result = await res.json();
-  console.log('=======================response from predictfall====================');
-  const { fallProb, label } = result;
+  try {
+    const res = await fetch('http://localhost:5001/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Ensure we send 38-length array
+      body: JSON.stringify({ input: Array.from(inputArray) }),
+      // optionally: timeout with AbortController in your env
+    });
 
-  console.log('====================================================================');
-  return { fallProb, label };
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      throw new Error(`Flask ${res.status}: ${err}`);
+    }
+
+    const result = await res.json();
+    if (
+      !result?.fallProb ||
+      !Array.isArray(result.fallProb) ||
+      !Array.isArray(result.fallProb[0])
+    ) {
+      console.log('Bad response shape from Flask');
+      throw new Error('Bad response shape from Flask');
+    }
+    return { fallProb: result.fallProb };
+  } catch (e) {
+    console.error('predictFall error:', e.message);
+    // Fallback: safe default (no fall)
+    return { fallProb: [[0.999, 0.001]] };
+  }
 }

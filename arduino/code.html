@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>ContentPulse • Smart Feed</title>
+		<style>
+			:root {
+				--bg: #0e0e0e;
+				--card: #161616;
+				--text: #f1f1f1;
+				--muted: #9b9b9b;
+				--accent: #b6ff00;
+				--radius: 16px;
+			}
+			body {
+				font-family: Inter, sans-serif;
+				background: var(--bg);
+				color: var(--text);
+				margin: 0;
+				padding: 0;
+				line-height: 1.6;
+			}
+			header {
+				padding: 1rem;
+				text-align: center;
+				font-weight: 700;
+				font-size: 1.3rem;
+				border-bottom: 1px solid #222;
+			}
+			main {
+				padding: 1rem;
+				max-width: 480px;
+				margin: auto;
+			}
+			.filters {
+				display: flex;
+				gap: 0.5rem;
+				overflow-x: auto;
+				padding-bottom: 0.5rem;
+			}
+			.filter {
+				flex: 0 0 auto;
+				padding: 0.45rem 1rem;
+				border-radius: 50px;
+				background: #1f1f1f;
+				color: var(--muted);
+				font-size: 0.85rem;
+			}
+			.filter.active {
+				background: var(--accent);
+				color: #000;
+				font-weight: 600;
+			}
+			.card {
+				background: var(--card);
+				border-radius: var(--radius);
+				margin-top: 1rem;
+				padding: 1rem;
+				box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+				transition: 0.25s;
+			}
+			.card:hover {
+				transform: translateY(-3px);
+			}
+			.meta {
+				font-size: 0.8rem;
+				color: var(--muted);
+			}
+			.title {
+				font-weight: 600;
+				margin: 0.3rem 0;
+			}
+			.desc {
+				color: var(--muted);
+				margin-bottom: 0.8rem;
+			}
+			.card-footer {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+			button {
+				background: var(--accent);
+				border: none;
+				padding: 0.5rem 1rem;
+				border-radius: 12px;
+				font-weight: 600;
+				color: #000;
+			}
+		</style>
+	</head>
+	<body>
+		<header>Smart Feed</header>
+		<main>
+			<div class="filters">
+				<div class="filter active">All</div>
+				<div class="filter">Technology</div>
+				<div class="filter">Design</div>
+				<div class="filter">Productivity</div>
+				<div class="filter">News</div>
+			</div>
+
+			<div class="card">
+				<div class="meta">techcrunch.com</div>
+				<div class="title">
+					The Future of Work: Embracing Remote Collaboration
+				</div>
+				<div class="desc">
+					Explore the evolving landscape of remote work, its benefits,
+					and strategies for distributed teams.
+				</div>
+				<div class="card-footer">
+					<span>5 min · ⚡ 92</span><button>Open</button>
+				</div>
+			</div>
+
+			<div class="card">
+				<div class="meta">uxdesign.cc</div>
+				<div class="title">
+					Mastering User Interface Design Principles
+				</div>
+				<div class="desc">
+					A comprehensive guide to applying UI fundamentals for better
+					digital experiences.
+				</div>
+				<div class="card-footer">
+					<span>12 min · ⚡ 88</span><button>Open</button>
+				</div>
+			</div>
+		</main>
+	</body>
+</html>
