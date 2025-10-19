@@ -147,6 +147,45 @@ void readFilteredIMU(float &ax_g,float &ay_g,float &az_g,
   }
 }
 
+
+
+// =================== HR/SPO2 Averaging ===================
+const int HR_AVG_WINDOW = 8;
+int hrBuffer[HR_AVG_WINDOW];
+int spo2Buffer[HR_AVG_WINDOW];
+int hrCount = 0, spo2Count = 0;
+int hrIdx = 0, spo2Idx = 0;
+
+float hrAvg = 0.0;
+float spo2Avg = 0.0;
+
+float computeAvg(int *buf, int count) {
+  if (count == 0) return -1;
+  long sum = 0;
+  for (int i = 0; i < count; i++) sum += buf[i];
+  return (float)sum / count;
+}
+
+void addToAverageBuffers(int hr, int spo2, bool validHR, bool validSpO2) {
+  if (validHR && hr > 30 && hr < 200) {  // sanity bounds
+    hrBuffer[hrIdx] = hr;
+    hrIdx = (hrIdx + 1) % HR_AVG_WINDOW;
+    if (hrCount < HR_AVG_WINDOW) hrCount++;
+    hrAvg = computeAvg(hrBuffer, hrCount);
+  }
+
+  if (validSpO2 && spo2 > 70 && spo2 <= 100) {
+    spo2Buffer[spo2Idx] = spo2;
+    spo2Idx = (spo2Idx + 1) % HR_AVG_WINDOW;
+    if (spo2Count < HR_AVG_WINDOW) spo2Count++;
+    spo2Avg = computeAvg(spo2Buffer, spo2Count);
+  }
+}
+
+
+
+
+
 // =================== MAX30105 FILTERING ===================
 const int avgWindow = 8;
 uint32_t redAvgBuf[avgWindow], irAvgBuf[avgWindow];
@@ -193,7 +232,7 @@ void readFilteredSpO2HR() {
       );
       idx = 0;  // start a new window
     }
-
+    addToAverageBuffers(heartRate, spo2, validHeartRate, validSPO2);
     // Small pacing so we don't hammer the FIFO too aggressively
     delay(5);
   }
@@ -209,8 +248,8 @@ bool postReading(){
   timeClient.update();
   uint64_t ts=((uint64_t)timeClient.getEpochTime()*1000)+(millis()%1000);
   doc["ts"]=ts;
-  doc["hr"]=validHeartRate?heartRate:-1;
-  doc["spo2"]=validSPO2?spo2:-1;
+  doc["hr"] = (hrCount > 0) ? (int)hrAvg : -1;
+  doc["spo2"] = (spo2Count > 0) ? (int)spo2Avg : -1;
 
   JsonArray imu=doc.createNestedArray("imu");
   for(int i=0;i<imuIndex;i++){
@@ -255,9 +294,9 @@ void setup(){
   else Serial.println("✅ MAX30105 ready.");
   particleSensor.setup();
 // Drive both IR and RED LEDs — IR is essential for SpO2/HR calc.
-particleSensor.setPulseAmplitudeIR(0x7F);   // 0x7F–0xFF is a good starting range
-particleSensor.setPulseAmplitudeRed(0x7F);  // increase if your readings are low
-particleSensor.setPulseAmplitudeGreen(0);   // not used
+  particleSensor.setPulseAmplitudeIR(0x7F);   // 0x7F–0xFF is a good starting range
+  particleSensor.setPulseAmplitudeRed(0x7F);  // increase if your readings are low
+  particleSensor.setPulseAmplitudeGreen(0);   // not used
 
   Serial.println("Initializing OLED display...");
   if(!display.begin(SSD1306_SWITCHCAPVCC,0x3C)){ 
@@ -352,15 +391,19 @@ void loop(){
     }
 
     // ---- Serial Monitor live stream ----
-    Serial.print("ACC[g]: ");
-    Serial.printf("%.2f,%.2f,%.2f | ", ax_g, ay_g, az_g);
-    Serial.print("GYR[dps]: ");
-    Serial.printf("%.1f,%.1f,%.1f | ", gx_dps, gy_dps, gz_dps);
-    if(validHeartRate) Serial.printf("HR: %d bpm | ", heartRate);
-    else Serial.print("HR: -- | ");
-    if(validSPO2) Serial.printf("SpO2: %d %%", spo2);
-    else Serial.print("SpO2: --");
-    Serial.println();
+    // HR
+      display.setCursor(2,38);
+      display.print("HR(avg): ");
+      if (hrCount > 0) display.print((int)hrAvg);
+      else display.print("--");
+      display.print(" bpm");
+
+      // SpO2
+      display.setCursor(2,48);
+      display.print("SpO2(avg): ");
+      if (spo2Count > 0) display.print((int)spo2Avg);
+      else display.print("--");
+      display.print(" %");
   }
 
   // ---- MAX30105 ----
